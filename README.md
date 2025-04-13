@@ -1,2 +1,2 @@
 # pulse
-The implementation for DAA, Decentralized Automatic Auction https://www.desmos.com/calculator/okmlvhjlhl
+An implementation for Pulse Auction, a Decentralized Automatic Auction(DAA), whos core mechanism wat mathematically modelled by Inshell on May 6, 2023, using Desmos calculator at https://www.desmos.com/calculator/okmlvhjlhl
