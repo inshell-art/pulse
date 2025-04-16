@@ -1,0 +1,19 @@
+{
+  "name": "pulse",
+  "version": "1.0.0",
+  "description": "An implementation for Pulse Auction, a Decentralized Automatic Auction(DAA), whos core mechanism wat mathematically modelled by Inshell on May 6, 2023, using Desmos calculator at https://www.desmos.com/calculator/okmlvhjlhl",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
