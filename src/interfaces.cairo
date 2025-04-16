@@ -1,6 +1,6 @@
 use starknet::ContractAddress;
 
-// --- Supporting Structs for Interface Return Types ---
+// --- Supporting Structs for Interface Return Types --
 // Auction pricing config for encapsulating the auction's pricing strategy for now
 #[derive(Copy, Drop, Serde)]
 struct AuctionPricingConfig {
