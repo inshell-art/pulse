@@ -122,7 +122,7 @@ checksum = "sha256:fd348b31c4a4407add33adc3c2b8f26dca71dbd7431faaf726168f37a91db
 
 [[package]]
 name = "pulse"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "openzeppelin",
  "snforge_std",
