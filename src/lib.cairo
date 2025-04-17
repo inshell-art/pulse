@@ -7,4 +7,5 @@ pub mod interfaces;
 mod PulseAuctionContract {
     // Intentionally empty for now while developing dependent contracts.
 // TODO: Implement PulseAuctionContract logic here.
+// This will include the auction logic, bidding process, and other functionalities.
 }
