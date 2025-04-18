@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
-## [0.1.4-pre] - 2005-4-18
+## [0.1.4] - 2005-4-18
 
 ### Added
 
@@ -49,5 +49,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
-[Unreleased]: https://github.com/inshell-art/pulse/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/inshell-art/pulse/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/inshell-art/pulse/releases/tag/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/inshell-art/pulse/releases/tag/v0.1.3
