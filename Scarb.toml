@@ -11,7 +11,7 @@ openzeppelin = "1.0.0"
 snforge_std = "0.40.0"
 assert_macros = "2.11.2"
 
-[[target.lib]]
+[lib]
 path = "src/lib.cairo"
 
 [[target.starknet-contract]]
