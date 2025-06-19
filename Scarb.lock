@@ -121,10 +121,19 @@ source = "registry+https://scarbs.xyz/"
 checksum = "sha256:fd348b31c4a4407add33adc3c2b8f26dca71dbd7431faaf726168f37a91db0c1"
 
 [[package]]
+name = "path_nft"
+version = "0.3.0"
+source = "git+https://github.com/inshell-art/path.git#ad948b48edbf0e3af9b8c2ce6e4eb8b9d29cbc94"
+dependencies = [
+ "openzeppelin",
+]
+
+[[package]]
 name = "pulse"
 version = "0.1.4"
 dependencies = [
  "openzeppelin",
+ "path_nft",
  "snforge_std",
 ]
 

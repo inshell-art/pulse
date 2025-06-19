@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+### Added
+
 ## [0.1.4] - 2005-4-18
 
 ### Added
@@ -31,6 +33,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 - n/a
 
 ### Fixed
+
+- n/a
+
+### Removed
+
+- n/a
+
+### Deprecated
+
+- n/a
+
+### Security
 
 - n/a
 
