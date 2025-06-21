@@ -16,8 +16,56 @@
 //!
 //! # Interactive model
 //! Full demo with sliders and data logger:
-//! https://www.desmos.com/calculator/g1kiufsofh
+//! https://www.desmos.com/calculator/m86reeiost
 //!
+//! # Implementation notes
+//! *This section records design choices that are not obvious from the bare
+//!  maths but are critical for a correct on-chain implementation.*
+//!
+//! • **Genesis vs. open gate**
+//!   `open_time` is the *earliest* block-timestamp at which any bid may be
+//!   processed.  The **genesis** bid is simply the first call that passes the
+//!   open-time guard; it sets all curve state (`floor_price`, `anchor_time`,
+//!   `last_time`, `last_block`) in one shot.  No artificial “pre-mint” token
+//!   exists.
+//
+//! • **One-bid-per-block safety**
+//!   The field `last_block` stores the block number of the most-recent sale;
+//!   a guard `assert(block > last_block)` prevents re-entrancy and accidental
+//!   double mints in the same Starknet block.
+//
+//! • **Price–time equivalence scale**
+//!   Pulse expresses price in the **same numeric units** as elapsed time
+//!   (seconds).  This “price = time” convention means that adding a waiting
+//!   interval Δt seconds literally adds Δt *price-units* to the next ask.
+//!   Internally we store all amounts as `u256` to keep head-room, but the
+//!   conceptual scale factor is **1 second ≙ 1 price-unit** which is
+//!   `price_time_scale (PTS) in the code.
+//
+//! • **Anchor calculus**
+//!   After every sale we solve
+//!   `anchor_time := t_last − k / Δt`,
+//!   where `Δt = t_last − t_prev`.  This guarantees that the new hyperbola
+//!   passes through `(t_last , floor_price + Δt)` and maintains the invariant
+//!   `price ≥ floor_price` for all future blocks.
+//
+//! • **Ask cache (`ask_price`)**
+//!   The current ask is *derived* from the curve but cached in `ask_price` so
+//!   off-chain callers can fetch it with one storage read instead of running
+//!   the division.  The value is refreshed at every bid and on any external
+//!   call that would observe a lower decay than the cached figure.
+//
+//! • **Treasury transfer stub**
+//!   The contract presently omits ERC-20/STRK transfer logic; a future upgrade
+//!   or wrapper must credit `recipient` with the `hammer_price` before the
+//!   mint is finalised.
+//
+//! • **Math safety**
+//!   All math uses Cairo’s core `u256` ops and panics on overflow.  Replace
+//!   with a checked fixed-point library (e.g., Cairo-Safe-Math) prior to
+//!   production deployment.
+//
+
 //! # Storage layout
 //! | Field            | Meaning (updated each sale)                               |
 //! |------------------|-----------------------------------------------------------|
