@@ -98,7 +98,6 @@
 //!
 //! # Security / TODO
 //! • replace naïve `u256` math with overflow-checked library
-//! • add re-entrancy guard around `safe_mint`
 //! • integrate ERC-20 / STRK transfer before main-net deployment
 //!
 //! _Documented with `//!` so `cairo-doc` includes this overview; use `///` for
@@ -107,15 +106,23 @@
 #[starknet::contract]
 mod PulseAuction {
     use core::integer::{u256, u64};
+    use openzeppelin::security::ReentrancyGuardComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use path_nft::i_path_nft::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::{ContractAddress, get_block_number, get_block_timestamp, get_caller_address};
     use crate::interfaces::i_pulse_auction_v1::IPulseAuctionV1;
 
+    component!(
+        path: ReentrancyGuardComponent, storage: reentrancy_guard, event: ReentrancyGuardEvent,
+    );
+    impl ReentrancyGuardInternalImpl = ReentrancyGuardComponent::InternalImpl<ContractState>;
+
     // ------------- STORAGE -------------
     #[storage]
     struct Storage {
+        #[substorage(v0)]
+        reentrancy_guard: ReentrancyGuardComponent::Storage,
         // - Auction life cycle
         open_time: u64,
         genesis_price: u256, // p₀
@@ -148,6 +155,8 @@ mod PulseAuction {
     #[derive(Drop, starknet::Event)]
     enum Event {
         Sale: Sale,
+        #[flat]
+        ReentrancyGuardEvent: ReentrancyGuardComponent::Event,
     }
 
     // ------------- CONSTRUCTOR -------------
@@ -199,6 +208,8 @@ mod PulseAuction {
         /// The genesis mint is the first public bid with the initial price, it activates the curve.
         /// And then, one block = one bid, with the price determined by the curve.
         fn bid(ref self: ContractState, max_price: u256) {
+            self.reentrancy_guard.start();
+
             let now: u64 = get_block_timestamp();
             let blk: u64 = get_block_number();
             let genesis_id = self.next_token_id.read();
@@ -258,6 +269,7 @@ mod PulseAuction {
                         },
                     );
 
+                self.reentrancy_guard.end();
                 return;
             }
 
@@ -288,8 +300,10 @@ mod PulseAuction {
                         timestamp: now,
                     },
                 );
+            self.reentrancy_guard.end();
         }
     }
+
 
     // ------------- HELPERS -------------
 

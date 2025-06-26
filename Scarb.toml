@@ -5,8 +5,8 @@ edition = "2024_07"
 
 [dependencies]
 starknet = "2.11.2"
-openzeppelin = "1.0.0"
-path_nft = { git = "https://github.com/inshell-art/path.git", subdir = "contracts/path_nft" }
+openzeppelin = "2.0.0"
+path_nft = { git = "https://github.com/inshell-art/path.git", tag = "v0.3.1", subdir = "contracts/path_nft" }
 
 [dev-dependencies]
 snforge_std = "0.40.0"
