@@ -1,4 +1,4 @@
-//! PulseAuction – Decentralized Automatic Auction
+//! PulseAuction – Decentralized Automatic Auction (DAA)
 //!
 //! # Core idea
 //! *Price is measured in time.*
@@ -8,10 +8,10 @@
 //!   y = k / (x - anchor_time) + floor_price
 //!
 //! After each winning bid (the **pump**):
-//!   • `floor_price  ← hammer_price`
+//!   • `floor_price  ← last price`
 //!   • `anchor_time ← t_last - k / Δt`,  where `Δt = t_last - t_prev`
 //!
-//! Hence the immediate ask becomes `hammer_price + Δt`, then decays back toward
+//! Hence the immediate ask becomes `floor_price` + Δt`, then decays back toward
 //! the new floor as blocks elapse.
 //!
 //! # Interactive model
@@ -19,68 +19,82 @@
 //! https://www.desmos.com/calculator/m86reeiost
 //!
 //! # Implementation notes
-//! *This section records design choices that are not obvious from the bare
-//!  maths but are critical for a correct on-chain implementation.*
+//! *This block records the non-obvious choices that make Pulse’s on-chain
+//!  behavior match its economic narrative (“price is belief unfolding in
+//!  time”).*
+//
+//! ## Genesis vs open gate
+//! • `open_time` is the earliest block-timestamp a bid can pass the guard.
+//! • The **genesis** bid (first call after `open_time`) mints token #0 (presumably)
+//!   and initializes the curve in one shot.  Before this bid:
+//!     – `floor_price   = constructor.floor_price`
+//!     – `curve_active  = false`  (so `get_current_price()` just echoes
+//!       `genesis_price`)
+//!   After the bid, `curve_active = true` and the hyperbola starts.
+//
+//! ## One-bid-per-block guard
+//! • `last_block` caches the block number of the most recent settlement.
+//! • `assert(get_block_number() > last_block)` prevents two fills in one
+//!   Starknet block – protects against re-entrancy and sandwich bundles.
+//
+//! ## Price-time equivalence
+//! • Pulse measures price in **seconds** to embed “price = time”.
+//! • Conversion factor **PTS** (field `price_time_scale`) is _1 sec ≙ 1
+//!   STRK_ (10¹⁵ fri).  Waiting Δt seconds raises the next ask by
+//!   `Δp = PTS × Δt`.
+//
+//! ## Anchor calculus (curve reset)
+//! • After each sale we set
+//!       Δt      = t_last − t_prev
+//!       anchor  = t_last − k / Δt
+//!       floor   = floor_price
+//!   This guarantees the new curve passes through
+//!   `(t_last, floor + Δt)` and always stays ≥ `floor`.
+//
+//! • **Ask calculation**
+//!   `get_current_price()` computes the ask directly from k, anchor_time and
+//!   floor_price.  No `ask_price` is stored, because:
+//!     – the ask is always `floor + Δt`
+//!     – view calls execute off-chain and pay no gas
+//!     - bid() calls calculate the ask from the same parameters
 //!
-//! • **Genesis vs. open gate**
-//!   `open_time` is the *earliest* block-timestamp at which any bid may be
-//!   processed.  The **genesis** bid is simply the first call that passes the
-//!   open-time guard; it sets all curve state (`floor_price`, `anchor_time`,
-//!   `last_time`, `last_block`) in one shot.  No artificial “pre-mint” token
-//!   exists.
+//! ## Payment transfer
+//! • After allowance check:
+//!   STRK.transfer_from(buyer, recipient, floor_price);
+//! • Only then emit `Sale`.
 //
-//! • **One-bid-per-block safety**
-//!   The field `last_block` stores the block number of the most-recent sale;
-//!   a guard `assert(block > last_block)` prevents re-entrancy and accidental
-//!   double mints in the same Starknet block.
+//! ## Math safety
+//! • Uses core `u256`; panics on overflow.  Swap to a fixed-point / checked
+//!   math library (e.g. Cairo Safe-Math) for production.
 //
-//! • **Price–time equivalence scale**
-//!   Pulse expresses price in the **same numeric units** as elapsed time
-//!   (seconds).  This “price = time” convention means that adding a waiting
-//!   interval Δt seconds literally adds Δt *price-units* to the next ask.
-//!   Internally we store all amounts as `u256` to keep head-room, but the
-//!   conceptual scale factor is **1 second ≙ 1 price-unit** which is
-//!   `price_time_scale (PTS) in the code.
-//
-//! • **Anchor calculus**
-//!   After every sale we solve
-//!   `anchor_time := t_last − k / Δt`,
-//!   where `Δt = t_last − t_prev`.  This guarantees that the new hyperbola
-//!   passes through `(t_last , floor_price + Δt)` and maintains the invariant
-//!   `price ≥ floor_price` for all future blocks.
-//
-//! • **Ask cache (`ask_price`)**
-//!   The current ask is *derived* from the curve but cached in `ask_price` so
-//!   off-chain callers can fetch it with one storage read instead of running
-//!   the division.  The value is refreshed at every bid and on any external
-//!   call that would observe a lower decay than the cached figure.
-//
-//! • **Treasury transfer stub**
-//!   The contract presently omits ERC-20/STRK transfer logic; a future upgrade
-//!   or wrapper must credit `recipient` with the `hammer_price` before the
-//!   mint is finalised.
-//
-//! • **Math safety**
-//!   All math uses Cairo’s core `u256` ops and panics on overflow.  Replace
-//!   with a checked fixed-point library (e.g., Cairo-Safe-Math) prior to
-//!   production deployment.
-//
-
+//! ## Parameter mutability
+//! • `k` and `price_time_scale` are stored in upgrade-friendly storage
+//!   slots so governance can slow decay (raise k) or shrink per-block
+//!   pump (lower PTS) if network fees change or deep liquidity appears.
+//!
+//! ## Scope
+//! This contract sells a single $PATH collection. It is *not* a factory;
+//! if multiple Pulse auctions are required, deploy one instance per drop
+//! or build a factory wrapper in a future upgrade.
+//!
 //! # Storage layout
 //! | Field            | Meaning (updated each sale)                               |
 //! |------------------|-----------------------------------------------------------|
-//! | `open_time`      | first block-timestamp when bids are accepted              |
-//! | `anchor_time`    | horizontal shift `a`                                      |
-//! | `floor_price`    | curve floor `b` (last hammer)                             |
+//! | `open_time`      | time when auction opens (the curve may not be active yet) |
+//! | `genesis_price`  | initial price (immutable)                                 |
+//! | `genesis_time`   | time when the genesis is sold (the curve is active)       |
+//! | `curve_active`   | true if curve is active (genesis sold)                    |
 //! | `curve_k`        | curvature `k` (immutable)                                 |
+//! | `ask_price`      | current ask price                                         |
+//! | `floor_price`    | curve floor `b` (last hammer)                             |
 //! | `last_time`      | timestamp of last hammer (for `Δt`)                       |
 //! | `last_block`     | block number of last hammer (1-sale-per-block guard)      |
 //! | `next_token_id`  | sequential NFT id                                         |
-//! | `target_contract`| PathNFT collection address                                |
+//! | `target_contract`| target NFT collection address                             |
 //! | `recipient`      | treasury address for proceeds                             |
 //!
 //! # Events
-//! `Sale(buyer, price, timestamp)` – emitted on every settlement.
+//! `Sale(buyer, token_id, price, timestamp)` – emitted on every settlement.
 //!
 //! # Security / TODO
 //! • replace naïve `u256` math with overflow-checked library
@@ -93,6 +107,7 @@
 #[starknet::contract]
 mod PulseAuction {
     use core::integer::{u256, u64};
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use path_nft::i_path_nft::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::{ContractAddress, get_block_number, get_block_timestamp, get_caller_address};
@@ -102,29 +117,31 @@ mod PulseAuction {
     #[storage]
     struct Storage {
         // - Auction life cycle
-        open_time: u64, // time when auction opens (the curve may not be active yet)
-        genesis_time: u64, // time when the genesis is sold (the curve is active)
-        curve_active: bool, // true if curve is active
+        open_time: u64,
+        genesis_price: u256, // p₀
+        genesis_time: u64,
+        curve_active: bool,
         // - Price curve
-        curve_k: u256, // curvature "k" (hyperbolic's)
-        time_anchor: u64, // absolute timestamp "a" in the formula (always < now)
-        last_price: u256, // price paid in previous sale, identical to current price floor
-        ask_price: u256, // ask price currently 
-        last_time: u64, // block-timestamp of previous sale, absolute too
-        last_block: u64, // block-number of previous sale
+        curve_k: u256,
+        anchor_time: u64, // a
+        floor_price: u256, // b
+        last_time: u64,
+        last_block: u64,
         // - Settlement specifics
-        target_contract: ContractAddress, // NFT contract to settle sale (e.g. ERC-721)
-        recipient: ContractAddress, // recipient of the auction proceeds 
-        next_token_id: u64 // next token ID to be sold
+        target_contract: ContractAddress,
+        recipient: ContractAddress,
+        next_token_id: u64,
     }
 
     // ------------- EVENTS -------------
     #[derive(Drop, starknet::Event)]
     struct Sale {
         #[key]
-        buyer: ContractAddress, // address of the buyer
-        price: u256, // price paid in the sale
-        timestamp: u64 // timestamp of the sale
+        buyer: ContractAddress,
+        #[key]
+        token_id: u64,
+        price: u256,
+        timestamp: u64,
     }
 
     #[event]
@@ -139,35 +156,29 @@ mod PulseAuction {
         ref self: ContractState,
         start_delay_sec: u64, // delay before auction starts for iteration, convert to absolute timestamp for mainnet
         k: u256, // k
-        initial_price: u256, // p₀
-        price_floor_b: u256, // b
+        genesis_price: u256, // p₀
+        floor_price: u256, // b₀
         recipient: ContractAddress,
         target_contract: ContractAddress,
         genesis_id: u64,
     ) {
         assert(k > 0, 'K_ZERO_OR_NEGATIVE');
+        assert(genesis_price - floor_price > 0, 'GAP_ZERO_OR_NEGATIVE');
         let now: u64 = get_block_timestamp();
 
-        // life cycle flags
+        // - Auction life cycle
         self.open_time.write(now + start_delay_sec);
+        self.genesis_price.write(genesis_price);
         self.curve_active.write(false);
 
-        // constant curve parameters
+        // - price curve
         self.curve_k.write(k);
-        self.last_price.write(price_floor_b);
-        self.ask_price.write(initial_price);
+        self.floor_price.write(floor_price);
 
-        // settlement specifics
-        self.next_token_id.write(genesis_id);
+        // - Settlement specifics
         self.recipient.write(recipient);
         self.target_contract.write(target_contract);
-
-        // a₀ = now - k/(p₀-b)
-        let gap = initial_price - price_floor_b;
-        assert(gap > 0, 'GAP_ZERO_OR_NEGATIVE');
-        let k_over_gap_u64: u64 = (k / gap).try_into().expect('K_OVER_GAP_OVERFLOW');
-        let a0 = now - k_over_gap_u64;
-        self.time_anchor.write(a0);
+        self.next_token_id.write(genesis_id);
     }
 
 
@@ -178,20 +189,8 @@ mod PulseAuction {
 
         /// Hyperbolic ask at the current block-timestamp.
         fn get_current_price(self: @ContractState) -> u256 {
-            /// If the curve has not been activated yet (genesis_time == 0),
-            /// the only valid price is the fixed opening ask (last_price).
-            if !self.curve_active.read() {
-                return self.last_price.read();
-            }
-
-            // Standard curve:  k / (x - a) + b
-            let now: u64 = get_block_timestamp();
-            let a: u64 = self.time_anchor.read();
-
-            let k: u256 = self.curve_k.read();
-            let b: u256 = self.price_floor_b.read();
-
-            k / (now - a).into() + b
+            let now = get_block_timestamp();
+            _get_current_price(self, now)
         }
 
         /// ------------- ACTION -------------
@@ -202,10 +201,8 @@ mod PulseAuction {
         fn bid(ref self: ContractState, max_price: u256) {
             let now: u64 = get_block_timestamp();
             let blk: u64 = get_block_number();
-            let genesis_id: u256 = self
-                .next_token_id
-                .read()
-                .into(); // convert to u256 for the NFT mint
+            let genesis_id = self.next_token_id.read();
+            let genesis_id_u256: u256 = genesis_id.into();
             let data = array![].span(); // placeholder for the NFT metadata, empty for now
 
             // 1) global guards
@@ -215,65 +212,116 @@ mod PulseAuction {
             // 2) first public bid (genesis mint)
             if !self.curve_active.read() {
                 let ask: u256 = self
-                    .last_price
-                    .read(); // fixed p₀, the initial_price while constructing passed here
+                    .genesis_price
+                    .read()
+                    .into(); // fixed p₀, the initial_price while constructing passed here
                 assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
+
+                // transfer payment
+                let erc20 = IERC20Dispatcher { contract_address: self.recipient.read() };
+                erc20.transfer_from(get_caller_address(), self.recipient.read(), ask);
 
                 // mint first public token, the Genesis
                 let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
-                nft.safe_mint(get_caller_address(), genesis_id, data);
+                nft.safe_mint(get_caller_address(), genesis_id_u256, data);
 
                 // anchor curve
-                self.genesis_time.write(now);
+                self.genesis_time.write(now); // records the time of the genesis mint
                 self.last_time.write(now);
                 self.curve_active.write(true);
                 self.last_block.write(blk);
-                self.last_price.write(ask);
 
-                let gap: u256 = ask - self.price_floor_b.read();
-                let shift: u64 = (self.curve_k.read() / gap).try_into().expect('SHIFT_OVERFLOW');
-                self.time_anchor.write(now - shift);
+                // calculate anchor time "a" for the curve
+                let a = _calculate_anchor_time(
+                    ref self,
+                    ask,
+                    self.floor_price.read(),
+                    self.curve_k.read(),
+                    self.last_time.read(),
+                );
+                self.anchor_time.write(a);
 
                 // bookkeeping
-                self.next_token_id.write(self.next_token_id.read() + 1);
+                self
+                    .next_token_id
+                    .write(
+                        self.next_token_id.read() + 1,
+                    ); // using the schema of sequential token ids
 
-                emit!(Sale { buyer: get_caller_address(), price: ask, timestamp: now });
+                self
+                    .emit(
+                        Sale {
+                            buyer: get_caller_address(),
+                            token_id: genesis_id,
+                            price: ask,
+                            timestamp: now,
+                        },
+                    );
+
                 return;
             }
 
-            // 3) regular-auction path
-            // ──────────────────────────────────
-            let elapsed: u64 = now - self.genesis_time.read();
-            let a: u64 = self.time_anchor.read();
-            let k: u256 = self.curve_k.read();
-            let b: u256 = self.price_floor_b.read();
+            // 3) regular-auction branch
+            let ask: u256 = _get_current_price(@self, now);
 
-            let price: u256 = k / (elapsed - a).into() + b;
-            assert(price <= max_price, 'PRICE_TOO_HIGH');
+            assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
+
+            // transfer payment
+            let erc20 = IERC20Dispatcher { contract_address: self.recipient.read() };
+            erc20.transfer_from(get_caller_address(), self.recipient.read(), ask);
 
             // mint next token and update state
             let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
-            nft.safe_mint(get_caller_address());
+            nft.safe_mint(get_caller_address(), self.next_token_id.read().into(), data);
 
-            self.last_price.write(price);
+            self.floor_price.write(ask);
             self.last_time.write(now);
             self.last_block.write(blk);
             self.next_token_id.write(self.next_token_id.read() + 1);
 
-            emit!(Sale { buyer: get_caller_address(), price: price, timestamp: now });
+            self
+                .emit(
+                    Sale {
+                        buyer: get_caller_address(),
+                        token_id: self.next_token_id.read() - 1,
+                        price: ask,
+                        timestamp: now,
+                    },
+                );
         }
     }
 
     // ------------- HELPERS -------------
 
     // To calculate time anchor "a" for the curve
-    fn calculate_time_anchor(
-        now: u64, k: u256, last_price: u256, ask_price: u256, last_time: u64,
+    fn _calculate_anchor_time(
+        ref self: ContractState, ask_price: u256, floor_price: u256, k: u256, last_time: u64,
     ) -> u64 {
-        let floor_price: u256 = last_price; // price floor is the last price
+        // The anchor time is calculated as:
+        // a = last_time - k / (ask_price - floor_price)
+        assert(ask_price > floor_price, 'ASK_LESS_THAN_FLOOR');
+
         let gap = ask_price - floor_price;
         assert(gap > 0, 'GAP_ZERO_OR_NEGATIVE');
         let k_over_gap_u64: u64 = (k / gap).try_into().expect('K_OVER_GAP_OVERFLOW');
         last_time - k_over_gap_u64
+    }
+
+    // To get current price
+    fn _get_current_price(self: @ContractState, now: u64) -> u256 {
+        // If the curve has not been activated yet (genesis_time == 0),
+        // the only valid price is the fixed opening ask (floor_price).
+        // This is the case for the genesis bid.
+        // After the genesis bid, the curve is active and the price is calculated
+        // using the hyperbolic formula.
+        if !self.curve_active.read() {
+            return self.floor_price.read();
+        }
+
+        let k: u256 = self.curve_k.read();
+        let a: u64 = self.anchor_time.read();
+        let b: u256 = self.floor_price.read();
+
+        k / (now - a).into() + b
     }
 }
