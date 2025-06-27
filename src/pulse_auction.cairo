@@ -244,11 +244,7 @@ mod PulseAuction {
 
                 // calculate anchor time "a" for the curve
                 let a = _calculate_anchor_time(
-                    ref self,
-                    ask,
-                    self.floor_price.read(),
-                    self.curve_k.read(),
-                    self.last_time.read(),
+                    ask, self.floor_price.read(), self.curve_k.read(), self.last_time.read(),
                 );
                 self.anchor_time.write(a);
 
@@ -304,13 +300,10 @@ mod PulseAuction {
         }
     }
 
-
     // ------------- HELPERS -------------
 
     // To calculate time anchor "a" for the curve
-    fn _calculate_anchor_time(
-        ref self: ContractState, ask_price: u256, floor_price: u256, k: u256, last_time: u64,
-    ) -> u64 {
+    fn _calculate_anchor_time(ask_price: u256, floor_price: u256, k: u256, last_time: u64) -> u64 {
         // The anchor time is calculated as:
         // a = last_time - k / (ask_price - floor_price)
         assert(ask_price > floor_price, 'ASK_LESS_THAN_FLOOR');
@@ -337,5 +330,20 @@ mod PulseAuction {
         let b: u256 = self.floor_price.read();
 
         k / (now - a).into() + b
+    }
+
+    // -------------UNIT TESTS -------------
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn anchor_time_basic() {
+            let ask = 110_u128.into();
+            let floor = 100_u128.into();
+            let k = 600_u128.into();
+            let t = 1_000_u64;
+            assert_eq!(_calculate_anchor_time(ask, floor, k, t), 940_u64);
+        }
     }
 }
