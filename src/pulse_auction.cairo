@@ -60,7 +60,7 @@
 //!
 //! ## Payment transfer
 //! • After allowance check:
-//!   STRK.transfer_from(buyer, recipient, floor_price);
+//!   STRK.transfer_from(buyer, treasury, floor_price);
 //! • Only then emit `Sale`.
 //
 //! ## Math safety
@@ -91,7 +91,7 @@
 //! | `last_block`     | block number of last hammer (1-sale-per-block guard)      |
 //! | `next_token_id`  | sequential NFT id                                         |
 //! | `target_contract`| target NFT collection address                             |
-//! | `recipient`      | treasury address for proceeds                             |
+//! | `treasury`      | treasury address for proceeds                             |
 //!
 //! # Events
 //! `Sale(buyer, token_id, price, timestamp)` – emitted on every settlement.
@@ -136,7 +136,7 @@ mod PulseAuction {
         last_block: u64,
         // - Settlement specifics
         target_contract: ContractAddress,
-        recipient: ContractAddress,
+        treasury: ContractAddress,
         next_token_id: u64,
     }
 
@@ -167,7 +167,7 @@ mod PulseAuction {
         k: u256, // k
         genesis_price: u256, // p₀
         floor_price: u256, // b₀
-        recipient: ContractAddress,
+        treasury: ContractAddress,
         target_contract: ContractAddress,
         genesis_id: u64,
     ) {
@@ -185,7 +185,7 @@ mod PulseAuction {
         self.floor_price.write(floor_price);
 
         // - Settlement specifics
-        self.recipient.write(recipient);
+        self.treasury.write(treasury);
         self.target_contract.write(target_contract);
         self.next_token_id.write(genesis_id);
     }
@@ -229,8 +229,8 @@ mod PulseAuction {
                 assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
 
                 // transfer payment
-                let erc20 = IERC20Dispatcher { contract_address: self.recipient.read() };
-                erc20.transfer_from(get_caller_address(), self.recipient.read(), ask);
+                let erc20 = IERC20Dispatcher { contract_address: self.treasury.read() };
+                erc20.transfer_from(get_caller_address(), self.treasury.read(), ask);
 
                 // mint first public token, the Genesis
                 let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
@@ -275,8 +275,8 @@ mod PulseAuction {
             assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
 
             // transfer payment
-            let erc20 = IERC20Dispatcher { contract_address: self.recipient.read() };
-            erc20.transfer_from(get_caller_address(), self.recipient.read(), ask);
+            let erc20 = IERC20Dispatcher { contract_address: self.treasury.read() };
+            erc20.transfer_from(get_caller_address(), self.treasury.read(), ask);
 
             // mint next token and update state
             let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
