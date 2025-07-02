@@ -39,9 +39,8 @@
 //
 //! ## Price-time equivalence
 //! • Pulse measures price in **seconds** to embed “price = time”.
-//! • Conversion factor **PTS** (field `price_time_scale`) is _1 sec ≙ 1
-//!   STRK_ (10¹⁵ fri).  Waiting Δt seconds raises the next ask by
-//!   `Δp = PTS × Δt`.
+//! • Conversion factor **PTS** (field `price_time_scale`) .
+//!   Waiting Δt seconds raises the next ask by `Δp = PTS × Δt`.
 //
 //! ## Anchor calculus (curve reset)
 //! • After each sale we set
@@ -54,7 +53,7 @@
 //! • **Ask calculation**
 //!   `get_current_price()` computes the ask directly from k, anchor_time and
 //!   floor_price.  No `ask_price` is stored, because:
-//!     – the ask is always `floor + Δt`
+//!     – the ask is always `floor + Δt*PTS`
 //!     – view calls execute off-chain and pay no gas
 //!     - bid() calls calculate the ask from the same parameters
 //!
@@ -78,20 +77,20 @@
 //! or build a factory wrapper in a future upgrade.
 //!
 //! # Storage layout
-//! | Field            | Meaning (updated each sale)                               |
-//! |------------------|-----------------------------------------------------------|
-//! | `open_time`      | time when auction opens (the curve may not be active yet) |
-//! | `genesis_price`  | initial price (immutable)                                 |
-//! | `genesis_time`   | time when the genesis is sold (the curve is active)       |
-//! | `curve_active`   | true if curve is active (genesis sold)                    |
-//! | `curve_k`        | curvature `k` (immutable)                                 |
-//! | `ask_price`      | current ask price                                         |
-//! | `floor_price`    | curve floor `b` (last hammer)                             |
-//! | `last_time`      | timestamp of last hammer (for `Δt`)                       |
-//! | `last_block`     | block number of last hammer (1-sale-per-block guard)      |
-//! | `next_token_id`  | sequential NFT id                                         |
-//! | `target_contract`| target NFT collection address                             |
-//! | `treasury`      | treasury address for proceeds                             |
+//! | Field             | Meaning (updated each sale)                               |
+//! |------------------ |-----------------------------------------------------------|
+//! | `open_time`       | time when auction opens (the curve may not be active yet) |
+//! | `genesis_price`   | initial price (immutable)                                 |
+//! | `genesis_time`    | time when the genesis is sold (the curve is active)       |
+//! | `curve_active`    | true if curve is active (genesis sold)                    |
+//! | `curve_k`         | curvature `k` (immutable)                                 |
+//! | `floor_price`     | curve floor `b` (last hammer)                             |
+//! | `curve_start_time`| timestamp of last hammer (for `Δt`)                       |
+//! | `last_block`      | block number of last hammer (1-sale-per-block guard)      |
+//! | `pts`             | price time scale                                          |
+//! | `next_token_id`   | sequential NFT id                                         |
+//! | `target_contract` | target NFT collection address                             |
+//! | `treasury`        | treasury address for proceeds                             |
 //!
 //! # Events
 //! `Sale(buyer, token_id, price, timestamp)` – emitted on every settlement.
@@ -125,15 +124,16 @@ mod PulseAuction {
         reentrancy_guard: ReentrancyGuardComponent::Storage,
         // - Auction life cycle
         open_time: u64,
-        genesis_price: u256, // p₀
         genesis_time: u64,
+        genesis_price: u256, // p₀
         curve_active: bool,
         // - Price curve
         curve_k: u256,
         anchor_time: u64, // a
         floor_price: u256, // b
-        last_time: u64,
+        curve_start_time: u64,
         last_block: u64,
+        pts: felt252, // price-time scale (PTS), defined by constructor
         // - Settlement specifics
         target_contract: ContractAddress,
         treasury: ContractAddress,
@@ -167,6 +167,7 @@ mod PulseAuction {
         k: u256, // k
         genesis_price: u256, // p₀
         floor_price: u256, // b₀
+        initial_pts: felt252, // PTS, price-time scale
         treasury: ContractAddress,
         target_contract: ContractAddress,
         genesis_id: u64,
@@ -183,6 +184,7 @@ mod PulseAuction {
         // - price curve
         self.curve_k.write(k);
         self.floor_price.write(floor_price);
+        self.pts.write(initial_pts);
 
         // - Settlement specifics
         self.treasury.write(treasury);
@@ -200,6 +202,10 @@ mod PulseAuction {
         fn get_current_price(self: @ContractState) -> u256 {
             let now = get_block_timestamp();
             _get_current_price(self, now)
+        }
+        /// Whether the auction curve is active.
+        fn curve_active(self: @ContractState) -> bool {
+            self.curve_active.read()
         }
 
         /// ------------- ACTION -------------
@@ -220,7 +226,7 @@ mod PulseAuction {
             assert(now >= self.open_time.read(), 'AUCTION_NOT_OPEN');
             assert(blk > self.last_block.read(), 'ONE_BID_PER_BLOCK');
 
-            // 2) first public bid (genesis mint)
+            // 2) first public bid (genesis mint) to activate the curve
             if !self.curve_active.read() {
                 let ask: u256 = self
                     .genesis_price
@@ -236,19 +242,21 @@ mod PulseAuction {
                 let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
                 nft.safe_mint(get_caller_address(), genesis_id_u256, data);
 
-                // anchor curve
-                self.genesis_time.write(now); // records the time of the genesis mint
-                self.last_time.write(now);
-                self.curve_active.write(true);
-                self.last_block.write(blk);
-
-                // calculate anchor time "a" for the curve
-                let a = _calculate_anchor_time(
-                    ask, self.floor_price.read(), self.curve_k.read(), self.last_time.read(),
+                // calculate anchor time "a" for the curve just activated
+                let initial_ask = self.genesis_price.read();
+                let floor_price = self.floor_price.read();
+                let curve_start_time = now; // the curve starts now
+                let anchor_time = _calculate_anchor_time(
+                    initial_ask, floor_price, self.curve_k.read(), curve_start_time,
                 );
-                self.anchor_time.write(a);
+                self.anchor_time.write(anchor_time); // a
 
-                // bookkeeping
+                // update other states
+                self.genesis_time.write(curve_start_time); // records the time of the genesis mint
+                self.curve_active.write(true);
+                self.floor_price.write(floor_price); // b
+                self.curve_start_time.write(curve_start_time);
+                self.last_block.write(blk);
                 self
                     .next_token_id
                     .write(
@@ -271,7 +279,6 @@ mod PulseAuction {
 
             // 3) regular-auction branch
             let ask: u256 = _get_current_price(@self, now);
-
             assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
 
             // transfer payment
@@ -282,8 +289,21 @@ mod PulseAuction {
             let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
             nft.safe_mint(get_caller_address(), self.next_token_id.read().into(), data);
 
-            self.floor_price.write(ask);
-            self.last_time.write(now);
+            // calculate anchor time "a" for the next new curve
+            let last_price: u256 = ask; // the ask is the last price by the bid 
+            let premium: u256 = (now - self.curve_start_time.read()).into()
+                * self.pts.read().into();
+            let initial_ask = last_price + premium; // initial ask for the new curve
+            let floor_price = last_price; // the new floor price is the last price
+            let curve_start_time = now; // the new curve starts now
+            let anchor_time = _calculate_anchor_time(
+                initial_ask, floor_price, self.curve_k.read(), curve_start_time,
+            );
+            self.anchor_time.write(anchor_time); // a
+
+            // update other states
+            self.floor_price.write(floor_price); // b
+            self.curve_start_time.write(curve_start_time);
             self.last_block.write(blk);
             self.next_token_id.write(self.next_token_id.read() + 1);
 
@@ -303,15 +323,17 @@ mod PulseAuction {
     // ------------- HELPERS -------------
 
     // To calculate time anchor "a" for the curve
-    fn _calculate_anchor_time(ask_price: u256, floor_price: u256, k: u256, last_time: u64) -> u64 {
+    fn _calculate_anchor_time(
+        initial_ask: u256, floor_price: u256, k: u256, curve_start_time: u64,
+    ) -> u64 {
         // The anchor time is calculated as:
-        // a = last_time - k / (ask_price - floor_price)
-        assert(ask_price > floor_price, 'ASK_LESS_THAN_FLOOR');
+        // a = curve_start_time - k / (initial_ask - floor_price)*pts
+        assert(initial_ask > floor_price, 'ASK_LESS_THAN_FLOOR');
 
-        let gap = ask_price - floor_price;
+        let gap = (initial_ask - floor_price);
         assert(gap > 0, 'GAP_ZERO_OR_NEGATIVE');
         let k_over_gap_u64: u64 = (k / gap).try_into().expect('K_OVER_GAP_OVERFLOW');
-        last_time - k_over_gap_u64
+        curve_start_time - k_over_gap_u64
     }
 
     // To get current price
@@ -322,7 +344,7 @@ mod PulseAuction {
         // After the genesis bid, the curve is active and the price is calculated
         // using the hyperbolic formula.
         if !self.curve_active.read() {
-            return self.floor_price.read();
+            return self.genesis_price.read();
         }
 
         let k: u256 = self.curve_k.read();
@@ -337,12 +359,14 @@ mod PulseAuction {
     mod tests {
         use super::*;
 
+        /// k = 600, gap = 10 ⇒ k / gap = 60 ⇒ a = 1_000 – 60 = 940
         #[test]
         fn anchor_time_basic() {
-            let ask = 110_u128.into();
-            let floor = 100_u128.into();
-            let k = 600_u128.into();
-            let t = 1_000_u64;
+            let ask = 110_u128.into(); // initial ask price
+            let floor = 100_u128.into(); // floor price
+            let k = 600_u128.into(); // curvature constant
+            let t: u64 = 1_000; // curve_start_time
+
             assert_eq!(_calculate_anchor_time(ask, floor, k, t), 940_u64);
         }
     }
