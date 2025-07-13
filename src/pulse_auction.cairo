@@ -110,7 +110,7 @@ mod PulseAuction {
     use path_nft::i_path_nft::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::{ContractAddress, get_block_number, get_block_timestamp, get_caller_address};
-    use crate::interfaces::i_pulse_auction_v1::IPulseAuctionV1;
+    use crate::interface::IPulseAuction;
 
     component!(
         path: ReentrancyGuardComponent, storage: reentrancy_guard, event: ReentrancyGuardEvent,
@@ -195,7 +195,7 @@ mod PulseAuction {
 
     /// Implementation of the public PulseAuction interface
     #[abi(embed_v0)]
-    impl PulseAuctionInterfaceV1Impl of IPulseAuctionV1<ContractState> {
+    impl PulseAuctionInterfaceV1Impl of IPulseAuction<ContractState> {
         /// ------------- VIEW -------------
 
         /// Hyperbolic ask at the current block-timestamp.

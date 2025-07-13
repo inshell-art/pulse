@@ -18,9 +18,7 @@ pub trait IReenteror<TContractState> {
 #[starknet::contract]
 mod Reenteror {
     use core::integer::u256;
-    use pulse::interfaces::i_pulse_auction_v1::{
-        IPulseAuctionV1Dispatcher, IPulseAuctionV1DispatcherTrait,
-    };
+    use pulse::interface::{IPulseAuctionDispatcher, IPulseAuctionDispatcherTrait};
     use starknet::ContractAddress;
     use super::IReenteror;
 
@@ -34,7 +32,7 @@ mod Reenteror {
     impl ReenterorImpl of IReenteror<ContractState> {
         /// call auction.bid() twice in one execution frame.
         fn attack(ref self: ContractState, auction: ContractAddress, price: u256) {
-            let d = IPulseAuctionV1Dispatcher { contract_address: auction };
+            let d = IPulseAuctionDispatcher { contract_address: auction };
             d.bid(price); // first entry – sets the re-entrancy lock
             d.bid(price); // nested entry – expected to revert
         }
