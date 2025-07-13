@@ -1,5 +1,5 @@
 #[starknet::interface]
-pub trait IPulseAuctionV1<TContractState> {
+pub trait IPulseAuction<TContractState> {
     /// ------------- VIEW -------------
     /// Return current ask price of the auction.
     fn get_current_price(self: @TContractState) -> u256;

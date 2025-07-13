@@ -2,16 +2,14 @@
 mod tests {
     use core::integer::u256;
     use core::traits::Into;
-    use pulse::interfaces::i_pulse_auction_v1::{
-        IPulseAuctionV1Dispatcher, IPulseAuctionV1DispatcherTrait,
-    };
+    use pulse::interface::{IPulseAuctionDispatcher, IPulseAuctionDispatcherTrait};
     use snforge_std::{
         CheatSpan, ContractClassTrait, DeclareResultTrait, cheat_block_number,
         cheat_block_timestamp, declare, mock_call, start_cheat_caller_address,
         stop_cheat_caller_address,
     };
     use starknet::ContractAddress;
-    use crate::helpers::{IReenterorSafeDispatcher, IReenterorSafeDispatcherTrait};
+    use crate::tests::helpers::{IReenterorSafeDispatcher, IReenterorSafeDispatcherTrait};
 
     // ---------- constants ----------
     const K_WEI: u128 = 1_000_000_000_000_000_000_000_000; // 1e24
@@ -34,7 +32,7 @@ mod tests {
 
     // deploys a pulse auction with a 10s delay before it opens
     fn deploy_pulse_after_10s() -> (
-        IPulseAuctionV1Dispatcher, ContractAddress, ContractAddress, ContractAddress,
+        IPulseAuctionDispatcher, ContractAddress, ContractAddress, ContractAddress,
     ) {
         let admin: ContractAddress = 1.try_into().unwrap();
         let buyer: ContractAddress = 2.try_into().unwrap();
@@ -55,7 +53,7 @@ mod tests {
             0_u64.into() // genesis_id
         ];
         let (addr, _) = class.deploy(@calldata).unwrap();
-        (IPulseAuctionV1Dispatcher { contract_address: addr }, buyer, admin, path_nft)
+        (IPulseAuctionDispatcher { contract_address: addr }, buyer, admin, path_nft)
     }
 
     #[test]
