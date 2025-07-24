@@ -207,6 +207,10 @@ mod PulseAuction {
         fn curve_active(self: @ContractState) -> bool {
             self.curve_active.read()
         }
+        /// Return the floor price of the auction.
+        fn get_floor_price(self: @ContractState) -> u256 {
+            self.floor_price.read()
+        }
 
         /// ------------- ACTION -------------
 

@@ -5,6 +5,11 @@ pub trait IPulseAuction<TContractState> {
     fn get_current_price(self: @TContractState) -> u256;
     /// Return whether the auction curve is active.
     fn curve_active(self: @TContractState) -> bool;
+    /// Return the floor price of the auction.
+    /// Mostly, it's for the first curve lacks of the floor set by the auction creator
+    /// and not in any event.
+    /// Calling it on the specified block (the first block of the auction).
+    fn get_floor_price(self: @TContractState) -> u256;
 
     /// ------------- ACTION -------------
     /// Place a bid in the auction.
