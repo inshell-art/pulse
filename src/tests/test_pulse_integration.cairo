@@ -14,12 +14,12 @@ mod tests {
     // ---------- constants ----------
     const K_WEI: u128 = 1_000_000_000_000_000_000_000_000; // 1e24
     const GENESIS_WEI: u128 = 1_000_000_000_000_000_000_000; // 1e21
-    const FLOOR_WEI: u128 = 900_000_000_000_000_000_000; // 9e20
+    const GENESIS_FLOOR: u128 = 900_000_000_000_000_000_000; // 9e20
     const GENESIS_HAMMER_TIME: u64 = 1_700_000_000; // to avoid overflow on anchor time a
 
     const CURVE_K: u256 = K_WEI.into();
     const GENESIS: u256 = GENESIS_WEI.into();
-    const FLOOR: u256 = FLOOR_WEI.into();
+    const FLOOR: u256 = GENESIS_FLOOR.into();
     const INITIAL_PTS: felt252 = 100_000_000_000_000_000_u128.into(); // 1e17
 
 
@@ -45,7 +45,7 @@ mod tests {
             0, // k.low , k.high
             GENESIS_WEI.into(),
             0, // genesis.low, high
-            FLOOR_WEI.into(),
+            GENESIS_FLOOR.into(),
             0, // floor.low , high
             INITIAL_PTS, // price-time scale
             admin.into(), // treasury
@@ -132,7 +132,11 @@ mod tests {
         let expected = CURVE_K / (THIRD_BID_TIME - anchor_time_a).into() + floor_price.into();
         assert_eq!(ask, expected, "price mismatch on third bid");
         // Switch to assert in prod:
-    // assert(current_price == expected, 'price mismatch after delta_t');}
+        // assert(current_price == expected, 'price mismatch after delta_t');}
+
+        // ----4. Get genesis floor price
+        let genesis_floor = auction.get_genesis_floor();
+        assert_eq!(genesis_floor, FLOOR, "wrong genesis floor price");
     }
 
     #[test]
