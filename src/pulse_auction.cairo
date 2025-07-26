@@ -81,6 +81,7 @@
 //! |------------------ |-----------------------------------------------------------|
 //! | `open_time`       | time when auction opens (the curve may not be active yet) |
 //! | `genesis_price`   | initial price (immutable)                                 |
+//! | `genesis_floor`   | floor price for the genesis mint (immutable)              |
 //! | `genesis_time`    | time when the genesis is sold (the curve is active)       |
 //! | `curve_active`    | true if curve is active (genesis sold)                    |
 //! | `curve_k`         | curvature `k` (immutable)                                 |
@@ -126,11 +127,12 @@ mod PulseAuction {
         open_time: u64,
         genesis_time: u64,
         genesis_price: u256, // p₀
+        genesis_floor: u256, // The dedicated floor price for the genesis mint only
         curve_active: bool,
         // - Price curve
         curve_k: u256,
         anchor_time: u64, // a
-        floor_price: u256, // b
+        floor_price: u256, // b after the genesis mint
         curve_start_time: u64,
         last_block: u64,
         pts: felt252, // price-time scale (PTS), defined by constructor
@@ -166,14 +168,14 @@ mod PulseAuction {
         start_delay_sec: u64, // delay before auction starts for iteration, convert to absolute timestamp for mainnet
         k: u256, // k
         genesis_price: u256, // p₀
-        floor_price: u256, // b₀
+        genesis_floor: u256, // b₀
         initial_pts: felt252, // PTS, price-time scale
         treasury: ContractAddress,
         target_contract: ContractAddress,
         genesis_id: u64,
     ) {
         assert(k > 0, 'K_ZERO_OR_NEGATIVE');
-        assert(genesis_price - floor_price > 0, 'GAP_ZERO_OR_NEGATIVE');
+        assert(genesis_price - genesis_floor > 0, 'GAP_ZERO_OR_NEGATIVE');
         let now: u64 = get_block_timestamp();
 
         // - Auction life cycle
@@ -183,7 +185,7 @@ mod PulseAuction {
 
         // - price curve
         self.curve_k.write(k);
-        self.floor_price.write(floor_price);
+        self.genesis_floor.write(genesis_floor);
         self.pts.write(initial_pts);
 
         // - Settlement specifics
@@ -207,9 +209,9 @@ mod PulseAuction {
         fn curve_active(self: @ContractState) -> bool {
             self.curve_active.read()
         }
-        /// Return the floor price of the auction.
-        fn get_floor_price(self: @ContractState) -> u256 {
-            self.floor_price.read()
+        /// Return the genesis floor price.
+        fn get_genesis_floor(self: @ContractState) -> u256 {
+            self.genesis_floor.read()
         }
 
         /// ------------- ACTION -------------
@@ -248,7 +250,7 @@ mod PulseAuction {
 
                 // calculate anchor time "a" for the curve just activated
                 let initial_ask = self.genesis_price.read();
-                let floor_price = self.floor_price.read();
+                let floor_price = self.genesis_floor.read();
                 let curve_start_time = now; // the curve starts now
                 let anchor_time = _calculate_anchor_time(
                     initial_ask, floor_price, self.curve_k.read(), curve_start_time,
@@ -281,7 +283,7 @@ mod PulseAuction {
                 return;
             }
 
-            // 3) regular-auction branch
+            // 3) regular-auction branch:
             let ask: u256 = _get_current_price(@self, now);
             assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
 
