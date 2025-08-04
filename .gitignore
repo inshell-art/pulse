@@ -4,3 +4,4 @@ snfoundry_trace/
 coverage/
 profile/
 node_modules/
+.DS_Store

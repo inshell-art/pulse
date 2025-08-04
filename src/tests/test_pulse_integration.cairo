@@ -187,6 +187,33 @@ mod tests {
         assert(res.is_err(), 're-entrancy not blocked');
     }
 
+    // --------------------------------------------------------
+    // NEW: sanity‑checks for get_config() and get_genesis_floor()
+    // --------------------------------------------------------
+
+    #[test]
+    fn get_config_returns_initial_values() {
+        // Deploy the auction (10‑second start delay is hard‑coded in helper)
+        let (auction, _, _, _) = deploy_pulse_after_10s();
+
+        // Call the view
+        let (open_time, gp, gf, k_out, pts_out) = auction.get_config();
+
+        // Expected: constructor wrote now (=0) + 10  into open_time
+        assert(open_time == 10_u64, 'open_time mismatch');
+        assert(gp == GENESIS, 'genesis_price mismatch');
+        assert(gf == FLOOR, 'genesis_floor mismatch');
+        assert(k_out == CURVE_K, 'k mismatch');
+        assert(pts_out == INITIAL_PTS, 'pts mismatch');
+    }
+
+    #[test]
+    fn get_genesis_floor_returns_constant() {
+        let (auction, _, _, _) = deploy_pulse_after_10s();
+        let gf = auction.get_genesis_floor();
+        assert(gf == FLOOR, 'genesis_floor mismatch');
+    }
+
     // ---------- HELPERS ----------
     fn calculate_anchor_a(
         initial_ask: u256, floor_price: u256, k: u256, curve_start_time: u64,

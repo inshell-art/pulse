@@ -213,6 +213,24 @@ mod PulseAuction {
         fn get_genesis_floor(self: @ContractState) -> u256 {
             self.genesis_floor.read()
         }
+        /// NEW: all immutable parameters needed by the frontend.
+        fn get_config(
+            self: @ContractState,
+        ) -> (
+            u64, // open_time
+            u256, // genesis_price
+            u256, // genesis_floor
+            u256, // k
+            felt252 // pts     
+        ) {
+            (
+                self.open_time.read(),
+                self.genesis_price.read(),
+                self.genesis_floor.read(),
+                self.curve_k.read(),
+                self.pts.read(),
+            )
+        }
 
         /// ------------- ACTION -------------
 
