@@ -5,8 +5,6 @@ pub trait IPulseAuction<TContractState> {
     fn get_current_price(self: @TContractState) -> u256;
     /// Return whether the auction curve is active.
     fn curve_active(self: @TContractState) -> bool;
-    /// Return the genesis price of the auction.
-    fn get_genesis_floor(self: @TContractState) -> u256;
     /// NEW: all immutable parameters needed by the frontend.
     fn get_config(
         self: @TContractState,

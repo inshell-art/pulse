@@ -209,10 +209,6 @@ mod PulseAuction {
         fn curve_active(self: @ContractState) -> bool {
             self.curve_active.read()
         }
-        /// Return the genesis floor price.
-        fn get_genesis_floor(self: @ContractState) -> u256 {
-            self.genesis_floor.read()
-        }
         /// NEW: all immutable parameters needed by the frontend.
         fn get_config(
             self: @ContractState,

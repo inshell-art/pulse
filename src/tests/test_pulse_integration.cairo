@@ -135,7 +135,7 @@ mod tests {
         // assert(current_price == expected, 'price mismatch after delta_t');}
 
         // ----4. Get genesis floor price
-        let genesis_floor = auction.get_genesis_floor();
+        let (_, _, genesis_floor, _, _) = auction.get_config();
         assert_eq!(genesis_floor, FLOOR, "wrong genesis floor price");
     }
 
@@ -188,7 +188,7 @@ mod tests {
     }
 
     // --------------------------------------------------------
-    // NEW: sanity‑checks for get_config() and get_genesis_floor()
+    // NEW: sanity‑checks for get_config()
     // --------------------------------------------------------
 
     #[test]
@@ -205,13 +205,6 @@ mod tests {
         assert(gf == FLOOR, 'genesis_floor mismatch');
         assert(k_out == CURVE_K, 'k mismatch');
         assert(pts_out == INITIAL_PTS, 'pts mismatch');
-    }
-
-    #[test]
-    fn get_genesis_floor_returns_constant() {
-        let (auction, _, _, _) = deploy_pulse_after_10s();
-        let gf = auction.get_genesis_floor();
-        assert(gf == FLOOR, 'genesis_floor mismatch');
     }
 
     // ---------- HELPERS ----------
