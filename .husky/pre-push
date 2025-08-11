@@ -1,4 +1,2 @@
 scarb build
-cp target/dev/pulse_PulseAuction.contract_class.json \
-   ../inshell.art/src/abi/PulseAuction.contract_class.json
 snforge test
