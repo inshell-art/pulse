@@ -89,8 +89,7 @@
 //! | `curve_start_time`| timestamp of last hammer (for `Δt`)                       |
 //! | `last_block`      | block number of last hammer (1-sale-per-block guard)      |
 //! | `pts`             | price time scale                                          |
-//! | `next_token_id`   | sequential NFT id                                         |
-//! | `target_contract` | target NFT collection address                             |
+//! | `mint_adapter`    | mint adapter contract address                             |
 //! | `treasury`        | treasury address for proceeds                             |
 //!
 //! # Events
@@ -108,9 +107,9 @@ mod PulseAuction {
     use core::integer::{u256, u64};
     use openzeppelin::security::ReentrancyGuardComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-    use path_nft::i_path_nft::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::{ContractAddress, get_block_number, get_block_timestamp, get_caller_address};
+    use crate::adapter_interface::{IAuctionAdapterDispatcher, IAuctionAdapterDispatcherTrait};
     use crate::interface::IPulseAuction;
 
     component!(
@@ -137,9 +136,9 @@ mod PulseAuction {
         last_block: u64,
         pts: felt252, // price-time scale (PTS), defined by constructor
         // - Settlement specifics
-        target_contract: ContractAddress,
+        payment_token: ContractAddress,
+        mint_adapter: ContractAddress,
         treasury: ContractAddress,
-        next_token_id: u64,
     }
 
     // ------------- EVENTS -------------
@@ -148,7 +147,7 @@ mod PulseAuction {
         #[key]
         buyer: ContractAddress,
         #[key]
-        token_id: u64,
+        token_id: u256,
         price: u256,
         timestamp: u64,
     }
@@ -170,9 +169,9 @@ mod PulseAuction {
         genesis_price: u256, // p₀
         genesis_floor: u256, // b₀
         initial_pts: felt252, // PTS, price-time scale
+        payment_token: ContractAddress,
         treasury: ContractAddress,
-        target_contract: ContractAddress,
-        genesis_id: u64,
+        mint_adapter: ContractAddress,
     ) {
         assert(k > 0, 'K_ZERO_OR_NEGATIVE');
         assert(genesis_price - genesis_floor > 0, 'GAP_ZERO_OR_NEGATIVE');
@@ -180,18 +179,16 @@ mod PulseAuction {
 
         // - Auction life cycle
         self.open_time.write(now + start_delay_sec);
-        self.genesis_price.write(genesis_price);
         self.curve_active.write(false);
-
-        // - price curve
         self.curve_k.write(k);
+        self.genesis_price.write(genesis_price);
         self.genesis_floor.write(genesis_floor);
         self.pts.write(initial_pts);
 
         // - Settlement specifics
+        self.payment_token.write(payment_token);
         self.treasury.write(treasury);
-        self.target_contract.write(target_contract);
-        self.next_token_id.write(genesis_id);
+        self.mint_adapter.write(mint_adapter);
     }
 
 
@@ -238,105 +235,70 @@ mod PulseAuction {
 
             let now: u64 = get_block_timestamp();
             let blk: u64 = get_block_number();
-            let genesis_id = self.next_token_id.read();
-            let genesis_id_u256: u256 = genesis_id.into();
             let data = array![].span(); // placeholder for the NFT metadata, empty for now
 
-            // 1) global guards
             assert(now >= self.open_time.read(), 'AUCTION_NOT_OPEN');
             assert(blk > self.last_block.read(), 'ONE_BID_PER_BLOCK');
 
-            // 2) first public bid (genesis mint) to activate the curve
+            let ask: u256 = if !self.curve_active.read() {
+                self.genesis_price.read() // fixed p₀ before the genesis mint
+            } else {
+                _get_current_price(@self, now)
+            };
+
+            assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
+
+            let erc20 = IERC20Dispatcher { contract_address: self.payment_token.read() };
+            erc20.transfer_from(get_caller_address(), self.treasury.read(), ask);
+
+            let adapter = IAuctionAdapterDispatcher { contract_address: self.mint_adapter.read() };
+            let minted_id: u256 = adapter.settle(get_caller_address(), data);
+
             if !self.curve_active.read() {
-                let ask: u256 = self
-                    .genesis_price
-                    .read()
-                    .into(); // fixed p₀, the initial_price while constructing passed here
-                assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
-
-                // transfer payment
-                let erc20 = IERC20Dispatcher { contract_address: self.treasury.read() };
-                erc20.transfer_from(get_caller_address(), self.treasury.read(), ask);
-
-                // mint first public token, the Genesis
-                let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
-                nft.safe_mint(get_caller_address(), genesis_id_u256, data);
-
-                // calculate anchor time "a" for the curve just activated
-                let initial_ask = self.genesis_price.read();
+                // genesis activation
                 let floor_price = self.genesis_floor.read();
-                let curve_start_time = now; // the curve starts now
+                let curve_start_time = now;
+                let anchor_time = _calculate_anchor_time(
+                    self.genesis_price.read(), floor_price, self.curve_k.read(), curve_start_time,
+                );
+
+                self.anchor_time.write(anchor_time);
+                self.genesis_time.write(curve_start_time);
+                self.curve_active.write(true);
+                self.floor_price.write(floor_price);
+                self.curve_start_time.write(curve_start_time);
+                self.last_block.write(blk);
+            } else {
+                // regular update
+                let last_price: u256 = ask; // the ask is the last price by the bid 
+                let premium: u256 = (now - self.curve_start_time.read()).into()
+                    * self.pts.read().into();
+                let initial_ask = last_price + premium; // initial ask for the new curve
+                let floor_price = last_price; // the new floor price is the last price
+                let curve_start_time = now; // the new curve starts now
                 let anchor_time = _calculate_anchor_time(
                     initial_ask, floor_price, self.curve_k.read(), curve_start_time,
                 );
                 self.anchor_time.write(anchor_time); // a
 
                 // update other states
-                self.genesis_time.write(curve_start_time); // records the time of the genesis mint
-                self.curve_active.write(true);
                 self.floor_price.write(floor_price); // b
                 self.curve_start_time.write(curve_start_time);
                 self.last_block.write(blk);
-                self
-                    .next_token_id
-                    .write(
-                        self.next_token_id.read() + 1,
-                    ); // using the schema of sequential token ids
-
-                self
-                    .emit(
-                        Sale {
-                            buyer: get_caller_address(),
-                            token_id: genesis_id,
-                            price: ask,
-                            timestamp: now,
-                        },
-                    );
-
-                self.reentrancy_guard.end();
-                return;
             }
-
-            // 3) regular-auction branch:
-            let ask: u256 = _get_current_price(@self, now);
-            assert(ask <= max_price, 'ASK_ABOVE_MAX_PRICE');
-
-            // transfer payment
-            let erc20 = IERC20Dispatcher { contract_address: self.treasury.read() };
-            erc20.transfer_from(get_caller_address(), self.treasury.read(), ask);
-
-            // mint next token and update state
-            let nft = IPathNFTDispatcher { contract_address: self.target_contract.read() };
-            nft.safe_mint(get_caller_address(), self.next_token_id.read().into(), data);
-
-            // calculate anchor time "a" for the next new curve
-            let last_price: u256 = ask; // the ask is the last price by the bid 
-            let premium: u256 = (now - self.curve_start_time.read()).into()
-                * self.pts.read().into();
-            let initial_ask = last_price + premium; // initial ask for the new curve
-            let floor_price = last_price; // the new floor price is the last price
-            let curve_start_time = now; // the new curve starts now
-            let anchor_time = _calculate_anchor_time(
-                initial_ask, floor_price, self.curve_k.read(), curve_start_time,
-            );
-            self.anchor_time.write(anchor_time); // a
-
-            // update other states
-            self.floor_price.write(floor_price); // b
-            self.curve_start_time.write(curve_start_time);
-            self.last_block.write(blk);
-            self.next_token_id.write(self.next_token_id.read() + 1);
 
             self
                 .emit(
                     Sale {
                         buyer: get_caller_address(),
-                        token_id: self.next_token_id.read() - 1,
+                        token_id: minted_id,
                         price: ask,
                         timestamp: now,
                     },
                 );
+
             self.reentrancy_guard.end();
+            return;
         }
     }
 
