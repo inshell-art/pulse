@@ -107,9 +107,9 @@ mod PulseAuction {
     use core::integer::{u256, u64};
     use openzeppelin::security::ReentrancyGuardComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use pulse_adapter::interface::{IPulseAdapterDispatcher, IPulseAdapterDispatcherTrait};
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::{ContractAddress, get_block_number, get_block_timestamp, get_caller_address};
-    use crate::adapter_interface::{IAuctionAdapterDispatcher, IAuctionAdapterDispatcherTrait};
     use crate::interface::IPulseAuction;
 
     component!(
@@ -143,7 +143,7 @@ mod PulseAuction {
 
     // ------------- EVENTS -------------
     #[derive(Drop, starknet::Event)]
-    struct Sale {
+    pub struct Sale {
         #[key]
         buyer: ContractAddress,
         #[key]
@@ -154,7 +154,7 @@ mod PulseAuction {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         Sale: Sale,
         #[flat]
         ReentrancyGuardEvent: ReentrancyGuardComponent::Event,
@@ -251,7 +251,7 @@ mod PulseAuction {
             let erc20 = IERC20Dispatcher { contract_address: self.payment_token.read() };
             erc20.transfer_from(get_caller_address(), self.treasury.read(), ask);
 
-            let adapter = IAuctionAdapterDispatcher { contract_address: self.mint_adapter.read() };
+            let adapter = IPulseAdapterDispatcher { contract_address: self.mint_adapter.read() };
             let minted_id: u256 = adapter.settle(get_caller_address(), data);
 
             if !self.curve_active.read() {

@@ -1,0 +1,20 @@
+[package]
+name = "pulse_auction"
+version = "0.2.0"
+edition = "2024_07"
+
+[dependencies]
+starknet = "2.11.4"
+openzeppelin = "2.0.0"
+pulse_adapter = { path = "../pulse_adapter" }
+
+[dev-dependencies]
+snforge_std = "0.48.0"
+assert_macros = "2.11.2"
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+
+[tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
