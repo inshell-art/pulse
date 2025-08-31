@@ -16,5 +16,7 @@ assert_macros = "2.11.2"
 sierra = true
 casm = true
 
+[[target.lib]]
+
 [tool.scarb]
 allow-prebuilt-plugins = ["snforge_std"]
