@@ -281,6 +281,88 @@ fn bid_emits_sale_event() {
 }
 
 
+// -----------------------------------------------------------------------------
+// Sale event payload checks (anchor_a and floor_b)
+// -----------------------------------------------------------------------------
+
+#[test]
+fn st_state_includes_anchor_and_floor_genesis() {
+    let e = deploy_env(0);
+
+    // Mock payment for 1 settlement
+    mock_call(PAY_TOKEN(), SELECTOR_TRANSFER_FROM(), array![1].span(), 1);
+
+    // Genesis at t1, block 1
+    let t1: u64 = 1000;
+    cheat_block_number(e.auction_addr, 1_u64, CheatSpan::TargetCalls(1));
+    cheat_block_timestamp(e.auction_addr, t1, CheatSpan::TargetCalls(1));
+
+    cheat_caller_address(e.auction_addr, ALICE(), CheatSpan::TargetCalls(1));
+    e.auction.bid(GENESIS_PRICE);
+
+    // Compute expected anchor and floor after genesis
+    let k: u256 = K;
+    let gap1: u256 = GENESIS_PRICE - GENESIS_FLOOR;
+    let a1_offset_u64: u64 = (k / gap1).try_into().expect('K_OVER_GAP_OVERFLOW');
+    let a1: u64 = t1 - a1_offset_u64;
+    let b1: u256 = GENESIS_FLOOR;
+
+    // Read state and assert
+    let (epoch, start, anchor, floor, active) = e.auction.get_state();
+    assert!(active);
+    assert_eq!(epoch, 1_u64);
+    assert_eq!(start, t1);
+    assert_eq!(anchor, a1);
+    assert_eq!(floor, b1);
+}
+
+#[test]
+fn st_state_includes_anchor_and_floor_second_sale() {
+    let e = deploy_env(0);
+
+    // Mock payments for two settlements
+    mock_call(PAY_TOKEN(), SELECTOR_TRANSFER_FROM(), array![1].span(), 2);
+
+    // --- Genesis at t1, block 1 ---
+    let t1: u64 = 1000;
+    cheat_block_number(e.auction_addr, 1_u64, CheatSpan::TargetCalls(1));
+    cheat_block_timestamp(e.auction_addr, t1, CheatSpan::TargetCalls(1));
+    cheat_caller_address(e.auction_addr, ALICE(), CheatSpan::TargetCalls(1));
+    e.auction.bid(GENESIS_PRICE);
+
+    // Compute a1 and b1 for second-sale expectations
+    let k: u256 = K;
+    let gap1: u256 = GENESIS_PRICE - GENESIS_FLOOR;
+    let a1_offset_u64: u64 = (k / gap1).try_into().expect('K_OVER_GAP_OVERFLOW');
+    let _a1: u64 = t1 - a1_offset_u64;
+    let _b1: u256 = GENESIS_FLOOR;
+
+    // --- Second sale at t2, block 2 ---
+    let t2: u64 = 1010;
+    cheat_block_number(e.auction_addr, 2_u64, CheatSpan::TargetCalls(2));
+    cheat_block_timestamp(e.auction_addr, t2, CheatSpan::TargetCalls(2));
+
+    // Ask just before second bid (becomes last_price) from on-chain view
+    let last_price_2: u256 = e.auction.get_current_price();
+    cheat_caller_address(e.auction_addr, ALICE(), CheatSpan::TargetCalls(1));
+    e.auction.bid(10_000_u128.into());
+
+    // Expected new anchor and floor after 2nd sale
+    let delta_t: u64 = t2 - t1;
+    let premium: u256 = delta_t.into() * PTS.into();
+    let a2_offset_u64: u64 = (k / premium).try_into().expect('K_OVER_PREMIUM_OVERFLOW');
+    let a2: u64 = t2 - a2_offset_u64;
+    let b2: u256 = last_price_2;
+
+    // Read state and assert
+    let (epoch, start, anchor, floor, active) = e.auction.get_state();
+    assert!(active);
+    assert_eq!(epoch, 2_u64);
+    assert_eq!(start, t2);
+    assert_eq!(anchor, a2);
+    assert_eq!(floor, b2);
+}
+
 #[test]
 #[feature("safe_dispatcher")]
 fn bid_ask_above_max_reverts() {

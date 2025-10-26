@@ -15,6 +15,15 @@ pub trait IPulseAuction<TContractState> {
         u256, // k
         felt252 // pts
     );
+    fn get_state(
+        self: @TContractState,
+    ) -> (
+        u64, // epoch_index
+        u64, // start_time
+        u64, // anchor_time
+        u256, // floor_b
+        bool // curve_active
+    );
 
     /// ------------- ACTION -------------
     /// Place a bid in the auction.

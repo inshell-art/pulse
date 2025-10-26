@@ -11,7 +11,7 @@
 //!   • `floor_price  ← last price`
 //!   • `anchor_time ← t_last - k / Δt`,  where `Δt = t_last - t_prev`
 //!
-//! Hence the immediate ask becomes `floor_price` + Δt`, then decays back toward
+//! Hence the immediate ask becomes `floor_price + Δt×PTS`, then decays back toward
 //! the new floor as blocks elapse.
 //!
 //! # Interactive model
@@ -45,7 +45,7 @@
 //! ## Anchor calculus (curve reset)
 //! • After each sale we set
 //!       Δt      = t_last − t_prev
-//!       anchor  = t_last − k / Δt
+//!       anchor  = t_last − k / (Δt × PTS)
 //!       floor   = floor_price
 //!   This guarantees the new curve passes through
 //!   `(t_last, floor + Δt)` and always stays ≥ `floor`.
@@ -56,10 +56,12 @@
 //!     – the ask is always `floor + Δt*PTS`
 //!     – view calls execute off-chain and pay no gas
 //!     - bid() calls calculate the ask from the same parameters
+//!   Edge case: if `now ≤ anchor_time` (approaching the vertical asymptote), the
+//!   view clamps to `floor + k` to avoid underflow while reflecting a very high ask.
 //!
 //! ## Payment transfer
 //! • After allowance check:
-//!   STRK.transfer_from(buyer, treasury, floor_price);
+//!   STRK.transfer_from(buyer, treasury, ask);
 //! • Only then emit `Sale`.
 //
 //! ## Math safety
@@ -93,7 +95,10 @@
 //! | `treasury`        | treasury address for proceeds                             |
 //!
 //! # Events
-//! `Sale(buyer, token_id, price, timestamp)` – emitted on every settlement.
+//! `Sale(buyer, token_id, price, timestamp, anchor_a, floor_b)` – emitted on every
+//! settlement. `anchor_a` is the current curve anchor (a) and `floor_b` is the
+//! current floor price (b) after the sale. This lets the frontend use a single
+//! source of truth for the curve parameters.
 //!
 //! # Security / TODO
 //! • replace naïve `u256` math with overflow-checked library
@@ -128,6 +133,7 @@ mod PulseAuction {
         genesis_price: u256, // p₀
         genesis_floor: u256, // The dedicated floor price for the genesis mint only
         curve_active: bool,
+        epoch_index: u64,
         // - Price curve
         curve_k: u256,
         anchor_time: u64, // a
@@ -150,6 +156,11 @@ mod PulseAuction {
         token_id: u256,
         price: u256,
         timestamp: u64,
+        /// Current curve anchor "a" (as a block timestamp)
+        anchor_a: u64,
+        /// Current curve floor "b" (price at hammer)
+        floor_b: u256,
+        epoch_index: u64,
     }
 
     #[event]
@@ -175,6 +186,8 @@ mod PulseAuction {
     ) {
         assert(k > 0, 'K_ZERO_OR_NEGATIVE');
         assert(genesis_price - genesis_floor > 0, 'GAP_ZERO_OR_NEGATIVE');
+
+        assert(initial_pts.try_into().expect('PTS_OUT_OF_RANGE') > 0_u128, 'PTS_ZERO_OR_NEGATIVE');
         let now: u64 = get_block_timestamp();
 
         // - Auction life cycle
@@ -184,6 +197,7 @@ mod PulseAuction {
         self.genesis_price.write(genesis_price);
         self.genesis_floor.write(genesis_floor);
         self.pts.write(initial_pts);
+        self.epoch_index.write(0);
 
         // - Settlement specifics
         self.payment_token.write(payment_token);
@@ -222,6 +236,24 @@ mod PulseAuction {
                 self.genesis_floor.read(),
                 self.curve_k.read(),
                 self.pts.read(),
+            )
+        }
+        /// State parameters needed by the frontend.
+        fn get_state(
+            self: @ContractState,
+        ) -> (
+            u64, // epoch_index
+            u64, // start_time
+            u64, // anchor_time     
+            u256, // floor_b
+            bool // curve_active
+        ) {
+            (
+                self.epoch_index.read(),
+                self.curve_start_time.read(),
+                self.anchor_time.read(),
+                self.floor_price.read(),
+                self.curve_active.read(),
             )
         }
 
@@ -287,6 +319,9 @@ mod PulseAuction {
                 self.last_block.write(blk);
             }
 
+            let idx = self.epoch_index.read() + 1;
+            self.epoch_index.write(idx);
+
             self
                 .emit(
                     Sale {
@@ -294,6 +329,9 @@ mod PulseAuction {
                         token_id: minted_id,
                         price: ask,
                         timestamp: now,
+                        anchor_a: self.anchor_time.read(),
+                        floor_b: self.floor_price.read(),
+                        epoch_index: idx,
                     },
                 );
 
@@ -309,12 +347,13 @@ mod PulseAuction {
         initial_ask: u256, floor_price: u256, k: u256, curve_start_time: u64,
     ) -> u64 {
         // The anchor time is calculated as:
-        // a = curve_start_time - k / (initial_ask - floor_price)*pts
+        // a = curve_start_time - k / (initial_ask - floor_price)
         assert(initial_ask > floor_price, 'ASK_LESS_THAN_FLOOR');
 
         let gap = (initial_ask - floor_price);
         assert(gap > 0, 'GAP_ZERO_OR_NEGATIVE');
         let k_over_gap_u64: u64 = (k / gap).try_into().expect('K_OVER_GAP_OVERFLOW');
+        assert(curve_start_time > k_over_gap_u64, 'ANCHOR_TIME_UNDERFLOW');
         curve_start_time - k_over_gap_u64
     }
 
@@ -333,6 +372,14 @@ mod PulseAuction {
         let a: u64 = self.anchor_time.read();
         let b: u256 = self.floor_price.read();
 
+        // Handle edge case where anchor time might be in the future
+        // This can happen in edge cases due to precision or timing
+        if now <= a {
+            // Return a very high price (approaching infinity as time approaches anchor)
+            // This is mathematically correct for the hyperbolic curve
+            return b + k;
+        }
+
         k / (now - a).into() + b
     }
 
@@ -344,9 +391,9 @@ mod PulseAuction {
         /// k = 600, gap = 10 ⇒ k / gap = 60 ⇒ a = 1_000 – 60 = 940
         #[test]
         fn anchor_time_basic() {
-            let ask = 110_u128.into(); // initial ask price
-            let floor = 100_u128.into(); // floor price
-            let k = 600_u128.into(); // curvature constant
+            let ask: u256 = 110_u256; // initial ask price
+            let floor: u256 = 100_u256; // floor price
+            let k: u256 = 600_u256; // curvature constant
             let t: u64 = 1_000; // curve_start_time
 
             assert_eq!(_calculate_anchor_time(ask, floor, k, t), 940_u64);
