@@ -25,9 +25,9 @@
 //
 //! ## Genesis vs open gate
 //! • `open_time` is the earliest block-timestamp a bid can pass the guard.
-//! • The **genesis** bid (first call after `open_time`) mints token #0 (presumably)
+//! • The **genesis** bid (first call after `open_time`) mints the first token
+//!   returned by the mint adapter (token numbering lives inside the adapter, not the auction)
 //!   and initializes the curve in one shot.  Before this bid:
-//!     – `floor_price   = constructor.floor_price`
 //!     – `curve_active  = false`  (so `get_current_price()` just echoes
 //!       `genesis_price`)
 //!   After the bid, `curve_active = true` and the hyperbola starts.
@@ -48,12 +48,12 @@
 //!       anchor  = t_last − k / (Δt × PTS)
 //!       floor   = floor_price
 //!   This guarantees the new curve passes through
-//!   `(t_last, floor + Δt)` and always stays ≥ `floor`.
+//!   `(t_last, floor + Δt×PTS)` and always stays ≥ `floor`.
 //
 //! • **Ask calculation**
 //!   `get_current_price()` computes the ask directly from k, anchor_time and
-//!   floor_price.  No `ask_price` is stored, because:
-//!     – the ask is always `floor + Δt*PTS`
+//!   floor_price via `ask(now) = k / (now - anchor) + floor`.  No `ask_price` is stored, because:
+//!     – the post-sale ask is `floor + Δt×PTS` and the rest of the curve is implied
 //!     – view calls execute off-chain and pay no gas
 //!     - bid() calls calculate the ask from the same parameters
 //!   Edge case: if `now ≤ anchor_time` (approaching the vertical asymptote), the
@@ -102,7 +102,6 @@
 //!
 //! # Security / TODO
 //! • replace naïve `u256` math with overflow-checked library
-//! • integrate ERC-20 / STRK transfer before main-net deployment
 //!
 //! _Documented with `//!` so `cairo-doc` includes this overview; use `///` for
 //! item-level docs and `//` for internal dev notes._
@@ -360,7 +359,7 @@ mod PulseAuction {
     // To get current price
     fn _get_current_price(self: @ContractState, now: u64) -> u256 {
         // If the curve has not been activated yet (genesis_time == 0),
-        // the only valid price is the fixed opening ask (floor_price).
+        // the only valid price is the fixed opening ask (genesis_price).
         // This is the case for the genesis bid.
         // After the genesis bid, the curve is active and the price is calculated
         // using the hyperbolic formula.
