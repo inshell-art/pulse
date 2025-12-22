@@ -9,8 +9,9 @@ openzeppelin = "2.0.0"
 pulse_adapter = { path = "../pulse_adapter" }
 
 [dev-dependencies]
-snforge_std = "0.49.0"
+snforge_std = "0.52.0"
 assert_macros = "2.11.2"
+cairo_test = "2.12.0"
 
 [[target.starknet-contract]]
 sierra = true

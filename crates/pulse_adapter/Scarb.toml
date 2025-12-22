@@ -5,3 +5,6 @@ edition = "2024_07"
 
 [dependencies]
 starknet = "2.11.4"
+
+[dev-dependencies]
+cairo_test = "2.12.0"
