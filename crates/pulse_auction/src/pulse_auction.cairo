@@ -124,10 +124,8 @@ pub fn validate_constructor_args(
                 return Result::Err('PTS_ZERO_OR_NEGATIVE');
             }
         },
-        Option::None => {
-            return Result::Err('PTS_OUT_OF_RANGE');
-        },
-    };
+        Option::None => { return Result::Err('PTS_OUT_OF_RANGE'); },
+    }
 
     Result::Ok(())
 }
@@ -211,9 +209,7 @@ mod PulseAuction {
     ) {
         match super::validate_constructor_args(k, genesis_price, genesis_floor, initial_pts) {
             Result::Ok(()) => {},
-            Result::Err(err) => {
-                assert(false, err);
-            },
+            Result::Err(err) => { assert(false, err); },
         }
         let now: u64 = get_block_timestamp();
 

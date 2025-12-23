@@ -161,9 +161,7 @@ fn gl_constructor_rejects_zero_k() {
     let res = validate_constructor_args(0_u256.into(), GENESIS_PRICE, GENESIS_FLOOR, PTS);
     match res {
         Result::Ok(()) => { panic!("expected K_ZERO_OR_NEGATIVE"); },
-        Result::Err(err) => {
-            assert(err == 'K_ZERO_OR_NEGATIVE', 'expected K_ZERO_OR_NEGATIVE');
-        },
+        Result::Err(err) => { assert(err == 'K_ZERO_OR_NEGATIVE', 'expected K_ZERO_OR_NEGATIVE'); },
     }
 }
 

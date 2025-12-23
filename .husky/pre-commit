@@ -1,2 +1,3 @@
 scarb lint
 scarb fmt
+git add -A
