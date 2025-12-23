@@ -13,6 +13,7 @@ use crate::interface::{
     IPulseAuctionDispatcher, IPulseAuctionDispatcherTrait, IPulseAuctionSafeDispatcher,
     IPulseAuctionSafeDispatcherTrait,
 };
+use crate::pulse_auction::validate_constructor_args;
 use crate::tests::test_setup::*;
 
 //
@@ -155,25 +156,15 @@ fn gl_constructor_config_and_initial_price() {
     assert_eq!(e.auction.get_current_price(), GENESIS_PRICE);
 }
 
-#[ignore] // snforge deploy syscall failures are not catchable as panics
 #[test]
 fn gl_constructor_rejects_zero_k() {
-    let class = declare("PulseAuction").unwrap().contract_class();
-    let _ = class
-        .deploy(
-            @{
-                let mut cd = ArrayTrait::new();
-                0_u64.serialize(ref cd);
-                0_u256.into().serialize(ref cd); // k = 0
-                GENESIS_PRICE.serialize(ref cd);
-                GENESIS_FLOOR.serialize(ref cd);
-                PTS.serialize(ref cd);
-                PAY_TOKEN().serialize(ref cd);
-                TREASURY().serialize(ref cd);
-                ZERO_CONTRACT_ADDRESS().serialize(ref cd);
-                cd
-            },
-        );
+    let res = validate_constructor_args(0_u256.into(), GENESIS_PRICE, GENESIS_FLOOR, PTS);
+    match res {
+        Result::Ok(()) => { panic!("expected K_ZERO_OR_NEGATIVE"); },
+        Result::Err(err) => {
+            assert(err == 'K_ZERO_OR_NEGATIVE', 'expected K_ZERO_OR_NEGATIVE');
+        },
+    }
 }
 
 #[test]

@@ -106,6 +106,32 @@
 //! _Documented with `//!` so `cairo-doc` includes this overview; use `///` for
 //! item-level docs and `//` for internal dev notes._
 
+use core::integer::u256;
+
+pub fn validate_constructor_args(
+    k: u256, genesis_price: u256, genesis_floor: u256, initial_pts: felt252,
+) -> Result<(), felt252> {
+    if k == 0_u256 {
+        return Result::Err('K_ZERO_OR_NEGATIVE');
+    }
+    if genesis_price <= genesis_floor {
+        return Result::Err('GAP_ZERO_OR_NEGATIVE');
+    }
+
+    match initial_pts.try_into() {
+        Option::Some(pts_u128) => {
+            if pts_u128 == 0_u128 {
+                return Result::Err('PTS_ZERO_OR_NEGATIVE');
+            }
+        },
+        Option::None => {
+            return Result::Err('PTS_OUT_OF_RANGE');
+        },
+    };
+
+    Result::Ok(())
+}
+
 #[starknet::contract]
 mod PulseAuction {
     use core::integer::{u256, u64};
@@ -183,10 +209,12 @@ mod PulseAuction {
         treasury: ContractAddress,
         mint_adapter: ContractAddress,
     ) {
-        assert(k > 0, 'K_ZERO_OR_NEGATIVE');
-        assert(genesis_price - genesis_floor > 0, 'GAP_ZERO_OR_NEGATIVE');
-
-        assert(initial_pts.try_into().expect('PTS_OUT_OF_RANGE') > 0_u128, 'PTS_ZERO_OR_NEGATIVE');
+        match super::validate_constructor_args(k, genesis_price, genesis_floor, initial_pts) {
+            Result::Ok(()) => {},
+            Result::Err(err) => {
+                assert(false, err);
+            },
+        }
         let now: u64 = get_block_timestamp();
 
         // - Auction life cycle
