@@ -1,3 +1,2 @@
 scarb lint
-scarb fmt
-git add -A
+scarb fmt --check
