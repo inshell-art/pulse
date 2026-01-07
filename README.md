@@ -1,25 +1,30 @@
 # pulse
 
-**Pulse** is an on-chain implementation of **DAA — Decentralized Automatic Auction**.
+**Pulse** is an on-chain implementation of **DAA - Decentralized Automatic Auction**.
 
-It is designed to be **NFT-agnostic**: Pulse does not “know” PATH or any particular collection.
-Instead, Pulse delegates project-specific minting / delivery logic to an **adapter contract**.
+Pulse is designed to be **NFT-agnostic**: the auction core does not assume any specific collection or minting style.
+Instead, Pulse delegates delivery to a project-specific **adapter contract**.
 
-> DAA curve sketch / intuition was explored in Desmos:
-> https://www.desmos.com/calculator/1d89f93d21
+Pricing curve intuition / sketch (Desmos):
+https://www.desmos.com/calculator/1d89f93d21
 
 ---
 
-## What Pulse is (and what it isn’t)
+## Concept
 
-### Pulse is
-- A **universal auction core** (DAA) that can sell/mint *some asset* over time with a deterministic pricing curve.
-- A contract you can deploy many times as **instances**, each configured by parameters (genesis price, floor, curve scale…).
-- **Composable**: integrates with different NFT drops / mints via a `mint_adapter`.
+A **PulseAuction instance** is a deployed auction contract configured by parameters (curve constants, payment token, treasury, adapter).
 
-### Pulse is not
-- “An auction contract for PATH only.”  
-  (Earlier drafts described it that way — but the intended architecture is adapter-driven and generic.)
+High-level flow:
+
+1. A buyer calls `bid(max_price)` on a PulseAuction instance.
+2. Pulse computes the current ask using the DAA curve + state.
+3. Pulse transfers payment (via `transfer_from`) to `treasury` using the configured `payment_token`.
+4. Pulse calls `mint_adapter.settle(buyer, data)` to deliver the asset.
+
+Behavior notes (per contract):
+- The first bid is the **genesis** bid: price is fixed at `genesis_price`, and the curve activates after it.
+- One bid per block is enforced.
+- Subsequent bids use the active curve; the state is updated each sale.
 
 ---
 
@@ -28,22 +33,35 @@ Instead, Pulse delegates project-specific minting / delivery logic to an **adapt
 Pulse is split into two layers:
 
 ### 1) PulseAuction (core)
-- Owns the DAA state machine and pricing.
+- Owns the DAA state machine and pricing logic.
 - Collects payment (ERC20-like token configured at deployment).
 - Sends proceeds to a treasury address.
-- At settlement, it calls an adapter to deliver the asset to the buyer.
+- Calls a mint/delivery adapter after purchase.
 
 ### 2) Mint Adapter (integration layer)
 A `mint_adapter` is a small contract that bridges Pulse to your actual asset logic.
 
-It is responsible for “what does delivery mean?”
+It defines what delivery means, for example:
 - mint an ERC721 token
 - mint an ERC1155 edition
 - transfer a pre-minted token held in custody
-- enforce allowlists / project rules / gating
-- map auction IDs → token IDs (or any other scheme)
+- enforce project rules (allowlists, gating, supply caps)
+- map auction purchases to token IDs (or any other scheme)
 
-Pulse stays clean and universal; adapters stay specific.
+**Pulse stays universal; adapters stay specific.**
+
+---
+
+## Adapter guidance (recommended)
+
+When writing an adapter, treat it as a security boundary:
+
+- **Authenticate the caller**: only accept calls from the intended PulseAuction instance(s).
+- **Validate limits**: supply caps, max per-wallet, allowlists, etc.
+- **Keep state minimal**: store only what you must (e.g. next token id, receipts).
+- **Fail loudly**: if delivery fails, revert so the purchase cannot complete silently.
+
+(Exact adapter interface is defined in this repo's contracts; keep your adapter implementation aligned with it.)
 
 ---
 
@@ -55,15 +73,19 @@ This repo provides the **PulseAuction** contract (package: `pulse_auction`, cont
 
 ```bash
 # Option A: using a sncast profile (recommended)
-sncast --profile <profile> --json declare   --package pulse_auction --contract-name PulseAuction   --url <RPC>
+sncast --profile <profile> --json declare \
+  --package pulse_auction --contract-name PulseAuction \
+  --url <RPC>
 
 # Option B: explicit account
-sncast --account <ACCOUNT_NAME> --accounts-file <OZ_ACCOUNTS_JSON> --json declare   --package pulse_auction --contract-name PulseAuction   --url <RPC>
+sncast --account <ACCOUNT_NAME> --accounts-file <OZ_ACCOUNTS_JSON> --json declare \
+  --package pulse_auction --contract-name PulseAuction \
+  --url <RPC>
 ```
 
-Record the returned `class_hash` — it is used to deploy any new PulseAuction instance.
+Record the returned `class_hash` - it is used to deploy any new PulseAuction instance.
 
-#### Sepolia (v0.10 RPC)
+Sepolia example:
 - Class hash: `0x078e68bc1f02fdadb21bebfa5041b30a53c6e0245e69623a715dd5429934ac91`
 - Declared tx: `0x07a47439c7f765f090d45aacae6de274146d9d56c526b5ca656f077b86932042`
 
@@ -73,20 +95,29 @@ Record the returned `class_hash` — it is used to deploy any new PulseAuction i
 
 Constructor args (order):
 
-1. `start_delay_sec` (u64)  
-2. `k` (u256: low high)  
-3. `genesis_price` (u256: low high)  
-4. `genesis_floor` (u256: low high)  
-5. `initial_pts` (felt252)  
-6. `payment_token` (ContractAddress)  
-7. `treasury` (ContractAddress)  
+1. `start_delay_sec` (u64)
+2. `k` (u256: low high)
+3. `genesis_price` (u256: low high)
+4. `genesis_floor` (u256: low high)
+5. `initial_pts` (felt252)
+6. `payment_token` (ContractAddress)
+7. `treasury` (ContractAddress)
 8. `mint_adapter` (ContractAddress)
 
 Example:
 
 ```bash
-sncast --profile <profile> --json deploy   --class-hash <CLASS_HASH> --url <RPC>   --constructor-calldata   0 \                      # start_delay_sec
-  <K_LOW> <K_HIGH>   <GENESIS_LOW> <GENESIS_HIGH>   <FLOOR_LOW> <FLOOR_HIGH>   <PTS>   <PAYTOKEN_ADDR>   <TREASURY_ADDR>   <MINT_ADAPTER_ADDR>
+sncast --profile <profile> --json deploy \
+  --class-hash <CLASS_HASH> --url <RPC> \
+  --constructor-calldata \
+  0 \                      # start_delay_sec
+  <K_LOW> <K_HIGH> \
+  <GENESIS_LOW> <GENESIS_HIGH> \
+  <FLOOR_LOW> <FLOOR_HIGH> \
+  <PTS> \
+  <PAYTOKEN_ADDR> \
+  <TREASURY_ADDR> \
+  <MINT_ADAPTER_ADDR>
 ```
 
 Notes:
@@ -97,27 +128,16 @@ Notes:
 
 ## Parameters (intuitive meanings)
 
-Pulse exposes curve parameters as deployment-time constants so each instance can represent a distinct “drop.”
+Pulse exposes curve parameters as deployment-time constants so each instance can represent a distinct auction configuration.
 
-- **genesis_price**: starting reference price at the beginning of the auction curve.
-- **genesis_floor**: minimum reference floor (prevents price from collapsing to zero).
-- **k**: curve “stiffness” / sensitivity (how sharply price responds over time / demand).
-- **initial_pts**: price-time scale (a unit that anchors “how fast” the curve breathes).
-- **start_delay_sec**: delay to shift the start time without redeploying logic.
-
-(For the curve intuition, see the Desmos model link above.)
-
----
-
-## Why adapters?
-
-Adapters make Pulse composable:
-
-- **One Pulse core** can serve many collections and many mint styles.
-- Projects can evolve their mint logic without touching the auction core.
-- Auditors can review the auction mechanism independently from mint rules.
-
-In other words: Pulse is a **universal DAA engine**, and adapters are **project skins**.
+- `genesis_price`: starting reference price at the beginning of the curve.
+- `genesis_floor`: minimum floor for the genesis mint only.
+- `k`: curve stiffness / sensitivity (how sharply price responds).
+- `initial_pts`: price-time scale (how fast the curve evolves in time).
+- `start_delay_sec`: delay to shift the start time without redeploying logic.
+- `payment_token`: the token used for settlement.
+- `treasury`: receiver of proceeds.
+- `mint_adapter`: delivery bridge into your asset logic.
 
 ---
 
