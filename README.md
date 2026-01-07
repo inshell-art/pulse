@@ -143,3 +143,12 @@ Pulse exposes curve parameters as deployment-time constants so each instance can
 
 ## License
 MIT.
+
+---
+
+## Further reading
+
+Pulse is a **Decentralized Automatic Auction (DAA)** that treats **price as belief unfolding in time**. Rather than fixed supply or a preset schedule, Pulse runs continuously: every purchase “pumps” the ask by a time-based premium and then starts a new micro-Dutch descent, so **tempo, revenue, and eventual supply emerge from collective participation**. The pricing is built on a hyperbola `f(x)=k/(x-a)+b` with constant `k` and live parameters `a` (time offset) and `b` (price floor); updates are transparent on-chain, making the mechanism replayable and auditable without hidden levers.
+
+Read the full essay: [Pulse: a Decentralized Automatic Auction](https://facets.inshell.art/article/644c2b2e-693a-41b2-89ec-2b013a092f24)  
+Provenance graph: [Desmos model](https://www.desmos.com/calculator/m86reeiost)
