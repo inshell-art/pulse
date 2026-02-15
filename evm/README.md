@@ -12,3 +12,10 @@ Mocks (for local testing/integration):
 - `evm/src/mocks/EvilAdapter.sol`
 - `evm/src/mocks/MockERC20.sol`
 
+## Hardhat
+
+```bash
+cd evm
+npm install
+npm test
+```

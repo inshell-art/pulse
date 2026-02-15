@@ -7,3 +7,7 @@ node_modules/
 .DS_Store
 deployments/
 output/
+evm/artifacts/
+evm/cache/
+evm/typechain/
+evm/types/
