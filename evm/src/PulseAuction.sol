@@ -121,7 +121,7 @@ contract PulseAuction is IPulseAuction {
     // ------------- ACTION -------------
 
     /// @notice Place a bid in the auction.
-    function bid(uint256 maxPrice) external override nonReentrant {
+    function bid(uint256 maxPrice) external payable override nonReentrant {
         uint64 nowTs = uint64(block.timestamp);
         uint64 blk = uint64(block.number);
         bytes memory data = "";
@@ -133,7 +133,15 @@ contract PulseAuction is IPulseAuction {
         require(ask <= maxPrice, "ASK_ABOVE_MAX_PRICE");
 
         // Payment first, then delivery.
-        paymentToken.safeTransferFrom(msg.sender, treasury, ask);
+        if (paymentToken == address(0)) {
+            require(msg.value == ask, "INVALID_MSG_VALUE");
+            (bool sent,) = payable(treasury).call{value: ask}("");
+            require(sent, "ETH_TRANSFER_FAILED");
+        } else {
+            require(msg.value == 0, "ETH_NOT_ACCEPTED");
+            paymentToken.safeTransferFrom(msg.sender, treasury, ask);
+        }
+
         uint256 mintedId = IPulseAdapter(mintAdapter).settle(msg.sender, data);
 
         if (!curveActive) {

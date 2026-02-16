@@ -27,6 +27,6 @@ interface IPulseAuction {
     // ------------- ACTION -------------
 
     /// @notice Place a bid in the auction. Reverts if `maxPrice` is below the current ask.
-    function bid(uint256 maxPrice) external;
+    /// @dev If `paymentToken == address(0)`, this function expects `msg.value == ask`.
+    function bid(uint256 maxPrice) external payable;
 }
-

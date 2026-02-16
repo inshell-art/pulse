@@ -11,3 +11,4 @@ evm/artifacts/
 evm/cache/
 evm/typechain/
 evm/types/
+evm/deployments/
