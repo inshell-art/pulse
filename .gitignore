@@ -6,6 +6,8 @@ profile/
 node_modules/
 .DS_Store
 deployments/
+!legacy/cairo/deployments/
+!legacy/cairo/deployments/devnet.json
 output/
 evm/artifacts/
 evm/cache/

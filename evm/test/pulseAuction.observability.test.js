@@ -1,13 +1,18 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import {
+  FIRST_ID,
   GENESIS_FLOOR,
   GENESIS_PRICE,
   K,
   LARGE_MAX_PRICE,
   PTS
 } from "./helpers/constants.js";
-import { deployERC20Env, getSaleEventFromReceipt } from "./helpers/fixtures.js";
+import {
+  deployERC20Env,
+  getSaleEventFromReceipt,
+  getSettledEventFromReceipt
+} from "./helpers/fixtures.js";
 import {
   deriveGenesisState,
   deriveNextState,
@@ -31,13 +36,14 @@ describe("PulseAuction Observability (Solidity)", function () {
   });
 
   it("emits correct Sale payload at genesis and matches state", async function () {
-    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 0n });
+    const { auction, alice, adapter } = await deployERC20Env(ethers, { startDelaySec: 0n });
 
     const t1 = (await auction.openTime()) + 1_000n;
     await setNextBlockTimestamp(provider, t1);
 
     const receipt = await (await auction.connect(alice).bid(GENESIS_PRICE)).wait();
     const sale = await getSaleEventFromReceipt(auction, receipt);
+    const settled = await getSettledEventFromReceipt(adapter, receipt);
 
     const model = deriveGenesisState({
       t: t1,
@@ -49,9 +55,11 @@ describe("PulseAuction Observability (Solidity)", function () {
     expect(sale.buyer).to.equal(alice.address);
     expect(sale.price).to.equal(GENESIS_PRICE);
     expect(sale.timestamp).to.equal(t1);
-    expect(sale.anchorA).to.equal(model.anchorTime);
-    expect(sale.floorB).to.equal(model.floorPrice);
+    expect(sale.nextAnchorA).to.equal(model.anchorTime);
+    expect(sale.nextFloorB).to.equal(model.floorPrice);
     expect(sale.epochIndex).to.equal(1n);
+    expect(settled.epochIndex).to.equal(sale.epochIndex);
+    expect(settled.tokenId).to.equal(FIRST_ID);
 
     const [epochIndex, startTime, anchorTime, floorPrice, active] = await auction.getState();
     expect(active).to.equal(true);
@@ -62,7 +70,7 @@ describe("PulseAuction Observability (Solidity)", function () {
   });
 
   it("emits correct Sale payload on second sale and matches state", async function () {
-    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 0n });
+    const { auction, alice, adapter } = await deployERC20Env(ethers, { startDelaySec: 0n });
 
     const t1 = (await auction.openTime()) + 1_000n;
     const t2 = t1 + 10n;
@@ -89,6 +97,7 @@ describe("PulseAuction Observability (Solidity)", function () {
     await setNextBlockTimestamp(provider, t2);
     const receipt = await (await auction.connect(alice).bid(LARGE_MAX_PRICE)).wait();
     const sale = await getSaleEventFromReceipt(auction, receipt);
+    const settled = await getSettledEventFromReceipt(adapter, receipt);
 
     const model = deriveNextState({
       now: t2,
@@ -102,9 +111,11 @@ describe("PulseAuction Observability (Solidity)", function () {
     expect(sale.buyer).to.equal(alice.address);
     expect(sale.price).to.equal(askAtSecondSale);
     expect(sale.timestamp).to.equal(t2);
-    expect(sale.anchorA).to.equal(model.anchorTime);
-    expect(sale.floorB).to.equal(model.floorPrice);
+    expect(sale.nextAnchorA).to.equal(model.anchorTime);
+    expect(sale.nextFloorB).to.equal(model.floorPrice);
     expect(sale.epochIndex).to.equal(model.epochIndex);
+    expect(settled.epochIndex).to.equal(sale.epochIndex);
+    expect(settled.tokenId).to.equal(FIRST_ID + 1n);
 
     const [epochIndex, startTime, anchorTime, floorPrice, active] = await auction.getState();
     expect(active).to.equal(true);
@@ -115,7 +126,7 @@ describe("PulseAuction Observability (Solidity)", function () {
   });
 
   it("replays multiple epochs from on-chain events without drift", async function () {
-    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 0n });
+    const { auction, alice, adapter } = await deployERC20Env(ethers, { startDelaySec: 0n });
 
     const openTime = await auction.openTime();
     const saleTimes = [openTime + 1_000n, openTime + 1_010n, openTime + 1_030n, openTime + 1_075n];
@@ -127,6 +138,7 @@ describe("PulseAuction Observability (Solidity)", function () {
       anchorTime: 0n,
       floorPrice: 0n
     };
+    let expectedTokenId = FIRST_ID;
 
     for (const t of saleTimes) {
       const expectedSalePrice = expectedAsk({
@@ -141,6 +153,7 @@ describe("PulseAuction Observability (Solidity)", function () {
       await setNextBlockTimestamp(provider, t);
       const receipt = await (await auction.connect(alice).bid(LARGE_MAX_PRICE)).wait();
       const sale = await getSaleEventFromReceipt(auction, receipt);
+      const settled = await getSettledEventFromReceipt(adapter, receipt);
 
       const nextModel = model.curveActive
         ? deriveNextState({
@@ -160,8 +173,10 @@ describe("PulseAuction Observability (Solidity)", function () {
 
       expect(sale.price).to.equal(expectedSalePrice);
       expect(sale.epochIndex).to.equal(nextModel.epochIndex);
-      expect(sale.anchorA).to.equal(nextModel.anchorTime);
-      expect(sale.floorB).to.equal(nextModel.floorPrice);
+      expect(sale.nextAnchorA).to.equal(nextModel.anchorTime);
+      expect(sale.nextFloorB).to.equal(nextModel.floorPrice);
+      expect(settled.epochIndex).to.equal(nextModel.epochIndex);
+      expect(settled.tokenId).to.equal(expectedTokenId);
 
       const [epochIndex, startTime, anchorTime, floorPrice, active] = await auction.getState();
       expect(active).to.equal(true);
@@ -171,6 +186,7 @@ describe("PulseAuction Observability (Solidity)", function () {
       expect(floorPrice).to.equal(nextModel.floorPrice);
 
       model = nextModel;
+      expectedTokenId += 1n;
     }
 
     const tSample = saleTimes[saleTimes.length - 1] + 9n;

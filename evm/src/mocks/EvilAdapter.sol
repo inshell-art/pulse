@@ -7,17 +7,17 @@ import {IPulseAuction} from "../interfaces/IPulseAuction.sol";
 /// @notice Adapter that attempts to reenter the auction during settlement.
 /// @dev Useful for verifying the auction's reentrancy protection.
 contract EvilAdapter is IPulseAdapter {
-    address public auction;
+    address public immutable auction;
 
     constructor(address _auction) {
         auction = _auction;
     }
 
-    function setAuction(address _auction) external {
-        auction = _auction;
-    }
-
-    function settle(address /* buyer */, bytes calldata /* data */) external override returns (uint256 tokenId) {
+    function settle(address /* buyer */, uint64 /* epochIndex */, bytes calldata /* data */)
+        external
+        override
+        returns (uint256 tokenId)
+    {
         require(msg.sender == auction, "ONLY_AUCTION");
 
         // This must fail if the auction is protected (nonReentrant / 1-bid-per-block).

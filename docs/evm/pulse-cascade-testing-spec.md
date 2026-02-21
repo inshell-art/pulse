@@ -57,7 +57,8 @@ Pulse supports two settlement modes:
   - `msg.value` must be `0` (`ETH_NOT_ACCEPTED`)
 - Native ETH mode: `paymentToken == address(0)`
   - settlement uses `msg.value`
-  - requires `msg.value == ask` (`INVALID_MSG_VALUE`)
+  - requires `msg.value >= ask` (`INVALID_MSG_VALUE` on underpayment)
+  - refunds surplus to buyer (`ETH_REFUND_FAILED` if refund transfer fails)
 
 ## Invariants
 ### Cascade Invariants
@@ -74,7 +75,8 @@ Pulse supports two settlement modes:
 - Treasury balance delta equals sale price in ETH mode.
 
 ### Observability Invariants
-- `Sale` event values match post-sale storage state (`anchorA`, `floorB`, `epochIndex`).
+- `Sale` event values match post-sale storage state (`nextAnchorA`, `nextFloorB`, `epochIndex`).
+- `Settled` event emitted by adapter maps `epochIndex -> tokenId`.
 - Multi-epoch replay from events/state matches reference oracle with no drift.
 
 ## Automated Test Layout
@@ -144,10 +146,13 @@ cat deployments/reports/localhost-cascade-eth-report.json
 ## Failure Triage Guide
 - `AUCTION_NOT_OPEN`: bid timestamp is earlier than `openTime`.
 - `ONE_BID_PER_BLOCK`: multiple fills attempted in same block/tx.
-- `INVALID_MSG_VALUE`: ETH payment does not exactly match ask.
+- `INVALID_MSG_VALUE`: ETH payment is below ask.
 - `ETH_NOT_ACCEPTED`: non-zero `msg.value` used in ERC20 mode.
 - `ADAPTER_REVERT`: adapter-level settlement failure.
 - `REENTRANCY`: malicious or recursive settle path blocked.
+- `ADAPTER_NOT_SET`: bid attempted before adapter was initialized.
+- `ONLY_DEPLOYER`: non-deployer attempted adapter initialization.
+- `ADAPTER_ALREADY_SET`: adapter initialization called more than once.
 
 ## Assumptions and Defaults
 - Localhost devnet is the canonical deterministic environment.

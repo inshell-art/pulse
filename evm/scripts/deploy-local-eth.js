@@ -19,10 +19,6 @@ async function main() {
   const [deployer, , treasury] = await ethers.getSigners();
   const networkInfo = await ethers.provider.getNetwork();
 
-  const Adapter = await ethers.getContractFactory("StubAdapter", deployer);
-  const adapter = await Adapter.deploy(ethers.ZeroAddress, FIRST_ID);
-  await adapter.waitForDeployment();
-
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await Auction.deploy(
     START_DELAY_SEC,
@@ -32,11 +28,15 @@ async function main() {
     PTS,
     ethers.ZeroAddress,
     treasury.address,
-    await adapter.getAddress()
+    ethers.ZeroAddress
   );
   await auction.waitForDeployment();
 
-  await (await adapter.setAuction(await auction.getAddress())).wait();
+  const Adapter = await ethers.getContractFactory("StubAdapter", deployer);
+  const adapter = await Adapter.deploy(await auction.getAddress(), FIRST_ID);
+  await adapter.waitForDeployment();
+
+  await (await auction.initializeMintAdapter(await adapter.getAddress())).wait();
 
   const deployment = {
     network: conn.networkName,

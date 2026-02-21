@@ -34,6 +34,7 @@ async function main() {
 
   const [, buyer] = await ethers.getSigners();
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
+  const adapter = await ethers.getContractAt("StubAdapter", deployment.contracts.stubAdapter);
 
   const k = toBigInt(deployment.config.k);
   const genesisPrice = toBigInt(deployment.config.genesisPrice);
@@ -47,6 +48,8 @@ async function main() {
   let saleTime = baseTime;
   const initialState = await auction.getState();
   let previousEpoch = toBigInt(initialState[0]);
+  const nextTokenId = await adapter.peekNext();
+  let previousTokenId = toBigInt(nextTokenId) - 1n;
 
   const records = [];
 
@@ -78,6 +81,16 @@ async function main() {
     }
 
     const sale = saleLogs[0].args;
+    const settledLogs = await adapter.queryFilter(
+      adapter.filters.Settled(),
+      receipt.blockNumber,
+      receipt.blockNumber
+    );
+    if (settledLogs.length === 0) {
+      throw new Error(`Settled event not found for block ${receipt.blockNumber}`);
+    }
+    const settled = settledLogs[0].args;
+
     const stateAfter = await auction.getState();
     const treasuryAfter = await ethers.provider.getBalance(deployment.treasury);
 
@@ -92,7 +105,10 @@ async function main() {
       askMatchesQuote: toBigInt(sale.price) === expectedAsk,
       treasuryDeltaMatchesPrice: treasuryAfter - treasuryBefore === toBigInt(sale.price),
       epochIncrementedByOne: epochIndex === previousEpoch + 1n,
-      eventMatchesState: toBigInt(sale.anchorA) === anchorTime && toBigInt(sale.floorB) === floorPrice,
+      eventMatchesState:
+        toBigInt(sale.nextAnchorA) === anchorTime && toBigInt(sale.nextFloorB) === floorPrice,
+      settledEpochMatchesSale: toBigInt(settled.epochIndex) === epochIndex,
+      tokenIdMonotonic: toBigInt(settled.tokenId) === previousTokenId + 1n,
       priceAboveOrEqualFloor: toBigInt(sale.price) >= floorPrice
     };
 
@@ -104,6 +120,7 @@ async function main() {
       buyer: buyer.address,
       expectedAsk,
       salePrice: toBigInt(sale.price),
+      tokenId: toBigInt(settled.tokenId),
       treasuryDeltaWei: treasuryAfter - treasuryBefore,
       stateAfter: {
         epochIndex,
@@ -117,6 +134,7 @@ async function main() {
     });
 
     previousEpoch = epochIndex;
+    previousTokenId = toBigInt(settled.tokenId);
   }
 
   const allChecksPass = records.every((r) => Object.values(r.checks).every(Boolean));

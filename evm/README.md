@@ -2,9 +2,9 @@
 
 This folder contains a Solidity port of the StarkNet Cairo contracts in this repo:
 
-- `evm/src/PulseAuction.sol` ports `crates/pulse_auction/src/pulse_auction.cairo`
-- `evm/src/interfaces/IPulseAdapter.sol` ports `crates/pulse_adapter/src/interface.cairo`
-- `evm/src/interfaces/IPulseAuction.sol` ports `crates/pulse_auction/src/interface.cairo`
+- `evm/src/PulseAuction.sol` ports `legacy/cairo/crates/pulse_auction/src/pulse_auction.cairo`
+- `evm/src/interfaces/IPulseAdapter.sol` ports `legacy/cairo/crates/pulse_adapter/src/interface.cairo`
+- `evm/src/interfaces/IPulseAuction.sol` ports `legacy/cairo/crates/pulse_auction/src/interface.cairo`
 
 Mocks (for local testing/integration):
 
@@ -15,6 +15,7 @@ Mocks (for local testing/integration):
 Full test strategy/spec:
 
 - `docs/evm/pulse-cascade-testing-spec.md`
+- `docs/evm/rehearsal-handbook.md`
 
 ## Hardhat
 

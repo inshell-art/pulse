@@ -1,1 +1,2 @@
-snforge test
+cd evm
+npm test

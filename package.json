@@ -7,7 +7,10 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm --prefix evm test",
+    "test:evm": "npm --prefix evm test",
+    "compile:evm": "npm --prefix evm run compile",
+    "test:cairo:legacy": "echo \"Cairo is archived under legacy/cairo\"",
     "prepare": "husky"
   },
   "keywords": [],

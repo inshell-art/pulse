@@ -18,7 +18,7 @@ library SafeERC20Minimal {
 }
 
 /// @notice PulseAuction – Decentralized Automatic Auction (DAA).
-/// @dev Port of `crates/pulse_auction/src/pulse_auction.cairo` to Ethereum.
+/// @dev Port of `legacy/cairo/crates/pulse_auction/src/pulse_auction.cairo` to Ethereum.
 contract PulseAuction is IPulseAuction {
     using SafeERC20Minimal for address;
 
@@ -26,12 +26,11 @@ contract PulseAuction is IPulseAuction {
 
     event Sale(
         address indexed buyer,
-        uint256 indexed tokenId,
+        uint64 indexed epochIndex,
         uint256 price,
         uint64 timestamp,
-        uint64 anchorA,
-        uint256 floorB,
-        uint64 epochIndex
+        uint64 nextAnchorA,
+        uint256 nextFloorB
     );
 
     // ------------- STORAGE -------------
@@ -53,6 +52,7 @@ contract PulseAuction is IPulseAuction {
     uint256 public pts; // price-time scale
 
     // - Settlement specifics
+    address public immutable deployer;
     address public paymentToken;
     address public mintAdapter;
     address public treasury;
@@ -93,6 +93,7 @@ contract PulseAuction is IPulseAuction {
         pts = initialPts;
         epochIndex = 0;
 
+        deployer = msg.sender;
         paymentToken = _paymentToken;
         treasury = _treasury;
         mintAdapter = _mintAdapter;
@@ -109,51 +110,84 @@ contract PulseAuction is IPulseAuction {
         external
         view
         override
-        returns (uint64, uint256, uint256, uint256, uint256)
+        returns (
+            uint64 openTime_,
+            uint256 genesisPrice_,
+            uint256 genesisFloor_,
+            uint256 k_,
+            uint256 pts_
+        )
     {
         return (openTime, genesisPrice, genesisFloor, curveK, pts);
     }
 
-    function getState() external view override returns (uint64, uint64, uint64, uint256, bool) {
+    function getState()
+        external
+        view
+        override
+        returns (
+            uint64 epochIndex_,
+            uint64 startTime_,
+            uint64 anchorTime_,
+            uint256 floorPrice_,
+            bool active_
+        )
+    {
         return (epochIndex, curveStartTime, anchorTime, floorPrice, curveActive);
     }
 
     // ------------- ACTION -------------
+
+    /// @notice One-time initializer for mint adapter when constructor used zero address.
+    function initializeMintAdapter(address adapter) external override {
+        require(msg.sender == deployer, "ONLY_DEPLOYER");
+        require(mintAdapter == address(0), "ADAPTER_ALREADY_SET");
+        require(adapter != address(0), "INVALID_ADAPTER");
+        mintAdapter = adapter;
+    }
 
     /// @notice Place a bid in the auction.
     function bid(uint256 maxPrice) external payable override nonReentrant {
         uint64 nowTs = uint64(block.timestamp);
         uint64 blk = uint64(block.number);
         bytes memory data = "";
+        uint64 nextEpochIndex = epochIndex + 1;
 
         require(nowTs >= openTime, "AUCTION_NOT_OPEN");
         require(uint256(blk) > uint256(lastBlock), "ONE_BID_PER_BLOCK");
 
         uint256 ask = curveActive ? _getCurrentPrice(nowTs) : genesisPrice;
         require(ask <= maxPrice, "ASK_ABOVE_MAX_PRICE");
+        require(mintAdapter != address(0), "ADAPTER_NOT_SET");
 
         // Payment first, then delivery.
         if (paymentToken == address(0)) {
-            require(msg.value == ask, "INVALID_MSG_VALUE");
+            require(msg.value >= ask, "INVALID_MSG_VALUE");
             (bool sent,) = payable(treasury).call{value: ask}("");
             require(sent, "ETH_TRANSFER_FAILED");
+
+            uint256 refund = msg.value - ask;
+            if (refund > 0) {
+                (bool refunded,) = payable(msg.sender).call{value: refund}("");
+                require(refunded, "ETH_REFUND_FAILED");
+            }
         } else {
             require(msg.value == 0, "ETH_NOT_ACCEPTED");
             paymentToken.safeTransferFrom(msg.sender, treasury, ask);
         }
 
-        uint256 mintedId = IPulseAdapter(mintAdapter).settle(msg.sender, data);
+        IPulseAdapter(mintAdapter).settle(msg.sender, nextEpochIndex, data);
 
         if (!curveActive) {
             // Genesis activation.
-            uint256 nextFloor = genesisFloor;
+            uint256 nextFloorB = genesisFloor;
             uint64 startTime = nowTs;
-            uint64 a = _calculateAnchorTime(genesisPrice, nextFloor, curveK, startTime);
+            uint64 nextAnchorA = _calculateAnchorTime(genesisPrice, nextFloorB, curveK, startTime);
 
-            anchorTime = a;
+            anchorTime = nextAnchorA;
             genesisTime = startTime;
             curveActive = true;
-            floorPrice = nextFloor;
+            floorPrice = nextFloorB;
             curveStartTime = startTime;
             lastBlock = blk;
         } else {
@@ -161,19 +195,19 @@ contract PulseAuction is IPulseAuction {
             uint256 lastPrice = ask;
             uint256 premium = uint256(nowTs - curveStartTime) * pts;
             uint256 initialAsk = lastPrice + premium;
-            uint256 nextFloor = lastPrice;
+            uint256 nextFloorB = lastPrice;
             uint64 startTime = nowTs;
-            uint64 a = _calculateAnchorTime(initialAsk, nextFloor, curveK, startTime);
+            uint64 nextAnchorA = _calculateAnchorTime(initialAsk, nextFloorB, curveK, startTime);
 
-            anchorTime = a;
-            floorPrice = nextFloor;
+            anchorTime = nextAnchorA;
+            floorPrice = nextFloorB;
             curveStartTime = startTime;
             lastBlock = blk;
         }
 
-        epochIndex += 1;
+        epochIndex = nextEpochIndex;
 
-        emit Sale(msg.sender, mintedId, ask, nowTs, anchorTime, floorPrice, epochIndex);
+        emit Sale(msg.sender, nextEpochIndex, ask, nowTs, anchorTime, floorPrice);
     }
 
     // ------------- HELPERS -------------
