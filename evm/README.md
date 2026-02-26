@@ -54,3 +54,46 @@ npm run scenario:local:eth
 
 `deploy:local:eth` writes deployment metadata to `evm/deployments/localhost-eth.json`.
 `scenario:local:eth` writes a cascade report to `evm/deployments/reports/localhost-cascade-eth-report.json`.
+
+## Quick Rehearsal
+
+Verify scenario summary:
+
+```bash
+jq '.summary' /Users/bigu/Projects/pulse/evm/deployments/reports/localhost-cascade-eth-report.json
+```
+
+Expected: `"allChecksPass": true`.
+
+Manual bid walkthrough:
+
+```bash
+cd evm
+npx hardhat console --network localhost
+```
+
+```javascript
+const conn = await network.connect();
+const { ethers } = conn;
+const fs = await import("node:fs/promises");
+const dep = JSON.parse(await fs.readFile("./deployments/localhost-eth.json", "utf8"));
+
+const auction = await ethers.getContractAt("PulseAuction", dep.contracts.pulseAuction);
+const adapter = await ethers.getContractAt("StubAdapter", dep.contracts.stubAdapter);
+const [, buyer] = await ethers.getSigners();
+
+const tx = await auction.connect(buyer).bid(1_000_000n, { value: 1_000_000n });
+const receipt = await tx.wait();
+
+const sale = (await auction.queryFilter(auction.filters.Sale(), receipt.blockNumber, receipt.blockNumber))[0].args;
+const settled = (await adapter.queryFilter(adapter.filters.Settled(), receipt.blockNumber, receipt.blockNumber))[0].args;
+
+sale.epochIndex.toString();
+settled.epochIndex.toString();
+settled.tokenId.toString();
+```
+
+Notes:
+- `maxPrice` is a slippage cap (`ask <= maxPrice`).
+- `value` is attached ETH (`msg.value >= ask`).
+- In ETH mode, overpayment is refunded and treasury receives exactly `ask`.
