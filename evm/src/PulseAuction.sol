@@ -106,6 +106,10 @@ contract PulseAuction is IPulseAuction {
         return _getCurrentPrice(uint64(block.timestamp));
     }
 
+    function getEpochIndex() external view override returns (uint64) {
+        return epochIndex;
+    }
+
     function getConfig()
         external
         view

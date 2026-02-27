@@ -12,6 +12,9 @@ interface IPulseAuction {
     /// @notice Whether the auction curve is active (genesis sold).
     function curveActive() external view returns (bool);
 
+    /// @notice Return the current epoch index.
+    function getEpochIndex() external view returns (uint64);
+
     /// @notice Immutable configuration used by frontends.
     function getConfig()
         external
