@@ -18,7 +18,6 @@ library SafeERC20Minimal {
 }
 
 /// @notice PulseAuction – Decentralized Automatic Auction (DAA).
-/// @dev Port of `legacy/cairo/crates/pulse_auction/src/pulse_auction.cairo` to Ethereum.
 contract PulseAuction is IPulseAuction {
     using SafeERC20Minimal for address;
 

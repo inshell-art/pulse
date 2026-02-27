@@ -1,9 +1,0 @@
-[sncast.dev_deployer]
-account = "dev_deployer"
-accounts-file = "/Users/bigu/.starknet_accounts/devnet_oz_accounts.json"
-url = "http://127.0.0.1:5050/rpc"
-
-[sncast.main-sep]
-account = "main-sep"
-accounts-file = "/Users/bigu/.starknet_accounts/sepolia_accounts.json"
-url = "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/ixt6dg9JuoeZ8Tt6RGcA8"
