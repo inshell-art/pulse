@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {IPulseAdapter} from "../interfaces/IPulseAdapter.sol";
 
 /// @notice Minimal adapter implementation for local testing/integration.
-/// @dev Mirrors the behavior of the Cairo test StubAdapter.
 contract StubAdapter is IPulseAdapter {
     event Settled(uint64 indexed epochIndex, uint256 indexed tokenId);
 

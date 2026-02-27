@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 /// @notice PulseAuction interface (DAA core).
-/// @dev Port of `legacy/cairo/crates/pulse_auction/src/interface.cairo`.
 interface IPulseAuction {
     // ------------- VIEW -------------
 

@@ -102,15 +102,6 @@ Notes:
 - `value` is the ETH attached to the tx (`msg.value >= ask`).
 - In ETH mode, overpayment is refunded and treasury receives exactly `ask`.
 
-## Legacy Cairo Archive
-
-The Cairo/Starknet codebase is archived and not the default workflow anymore.
-
-- `legacy/cairo/`
-- Archived packages: `legacy/cairo/crates/`
-- Archived deployment metadata: `legacy/cairo/deployments/`
-- Archived runbook: `legacy/cairo/README.md`
-
 ## Concept
 
 PulseAuction is NFT-agnostic: the auction core does not assume a specific minting system.
@@ -212,7 +203,7 @@ Frontends/indexers can reconstruct asks at any timestamp and replay state transi
 
 ### Provenance and references
 
-- Solidity implementation: `evm/src/PulseAuction.sol` (port of the original Cairo contract).
+- Solidity implementation: `evm/src/PulseAuction.sol`.
 - Mechanism oracle and invariants: `docs/evm/pulse-cascade-testing-spec.md`.
 - Interactive curve model (Desmos): https://www.desmos.com/calculator/1d89f93d21
 

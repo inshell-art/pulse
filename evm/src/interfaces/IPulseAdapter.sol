@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 /// @notice Adapter interface for delivering the purchased asset.
-/// @dev Port of `legacy/cairo/crates/pulse_adapter/src/interface.cairo`.
 interface IPulseAdapter {
     /// @notice Deliver the asset to `buyer`.
     /// @dev Must revert if delivery fails.

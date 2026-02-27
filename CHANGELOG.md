@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ### Added
 
-- **Supporting structs** in `interfaces.cairo` for richer auction data:
+- **Supporting structs** in the interface layer for richer auction data:
   - `AuctionPricingConfig`
   - `AuctionConfig`
   - `CurrentBeat`
@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   - `get_beat_outcome(self, beat_id) -> Option<BeatOutcome>`
   - `get_next_beat_id(self) -> u64`
   - `get_beat_winner(self, beat_id) -> ContractAddress`
-- **Stub module** `PulseAuctionContract` in `src/lib.cairo` as a placeholder for:
+- **Stub module** `PulseAuctionContract` in the contract library as a placeholder for:
   - on‑chain auction logic
   - bidding process
   - administrative controls
@@ -54,7 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ### Added
 
-- Switched to unified `[[target]]` syntax in `Scarb.toml`
+- Switched to unified target syntax in build configuration
 - Declared explicit `[lib]` to expose `pulse::interfaces` for downstream crates
 
 ### Fixed

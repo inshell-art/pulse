@@ -1,10 +1,10 @@
 # Pulse (EVM / Solidity)
 
-This folder contains a Solidity port of the StarkNet Cairo contracts in this repo:
+This folder contains the active Solidity implementation of Pulse on Ethereum.
 
-- `evm/src/PulseAuction.sol` ports `legacy/cairo/crates/pulse_auction/src/pulse_auction.cairo`
-- `evm/src/interfaces/IPulseAdapter.sol` ports `legacy/cairo/crates/pulse_adapter/src/interface.cairo`
-- `evm/src/interfaces/IPulseAuction.sol` ports `legacy/cairo/crates/pulse_auction/src/interface.cairo`
+- `evm/src/PulseAuction.sol`
+- `evm/src/interfaces/IPulseAdapter.sol`
+- `evm/src/interfaces/IPulseAuction.sol`
 
 Mocks (for local testing/integration):
 
