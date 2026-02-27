@@ -123,6 +123,99 @@ High-level flow:
 3. Auction settles payment to treasury.
 4. Auction calls adapter `settle(...)` to deliver/mint.
 
+## DAA (Decentralized Automatic Auction): how it works
+
+Pulse implements a serial auction: every successful bid finalizes the current epoch and immediately starts the next epoch.
+
+At any moment the ask price is deterministic from on-chain state. There is no off-chain price schedule.
+
+### Core math (hyperbola / constant-product form)
+
+After genesis, the ask is a shifted hyperbola in time.
+
+Let:
+- `t` = current block timestamp (seconds)
+- `a` = `anchorTime` (seconds)
+- `b` = `floorPrice` (price units, e.g. wei)
+- `k` = `curveK` (price*seconds)
+
+Then:
+- For `t > a`:
+  - `ask(t) = b + floor( k / (t - a) )`
+- For `t <= a` (safety clamp near the vertical asymptote):
+  - `ask(t) = b + k`
+
+Equivalent constant-product view (ignoring integer rounding):
+- `(t - a) * (ask(t) - b) ~= k`
+
+So between sales, the ask decays monotonically toward `b` as time increases.
+
+### Genesis (curve activation)
+
+Before the first successful bid, the curve is inactive and ask is constant:
+- `ask(t) = genesisPrice`
+
+The first successful bid (genesis) activates the curve in one shot:
+- `floorPrice = genesisFloor`
+- `curveStartTime = t_genesis`
+- Choose `anchorTime` so the hyperbola starts at `genesisPrice` at `t_genesis`.
+
+### Epoch transition (the pump + reset)
+
+Each successful bid at time `t_last` closes an epoch and sets parameters for the next epoch.
+
+At sale time:
+- `lastPrice = ask(t_last)` (the executed sale price)
+- `deltaT = t_last - previousCurveStartTime`
+- `premium = deltaT * pts`
+
+(`pts` is price-time scale: price units per second)
+
+Define the next epoch start price:
+- `initialAsk = lastPrice + premium`
+- `nextFloor = lastPrice`
+
+Now choose a new `anchorTime` so the next epoch curve satisfies:
+- `ask(t_last) = initialAsk`
+
+Using `ask(t) = b + k / (t - a)` with `b = nextFloor`, solve for `a`:
+- `initialAsk = b + k / (t_last - a)`
+- `initialAsk - b = k / (t_last - a)`
+- `t_last - a = k / (initialAsk - b)`
+- `a = t_last - floor( k / (initialAsk - b) )`
+
+Because `initialAsk - b = premium` (since `b = lastPrice`):
+- `anchorTime = t_last - floor( k / premium )`
+
+This creates the characteristic shape:
+- Immediately after a sale, the ask jumps up by `premium = deltaT * pts`.
+- Then the ask decays hyperbolically back toward the new floor (`lastPrice`).
+
+### Integer division and edge case
+
+All divisions are integer divisions (`floor`), so small rounding effects are expected.
+
+Important edge case:
+- If `premium > k`, then `floor(k / premium) = 0`, so `anchorTime == curveStartTime`.
+- At exactly `t == anchorTime` the curve would be undefined, so the implementation clamps to `floor + k` when `t <= anchorTime`.
+- One second later it follows `floor + floor(k / 1)`, then `floor + floor(k / 2)`, and so on.
+
+### Why store (`anchorTime`, `floorPrice`) instead of the whole curve?
+
+For each epoch, the entire curve is defined by small state:
+- `k` (constant)
+- `anchorTime` (`a`)
+- `floorPrice` (`b`)
+- `curveStartTime` (used to compute the next `premium`)
+
+Frontends/indexers can reconstruct asks at any timestamp and replay state transitions from events.
+
+### Provenance and references
+
+- Solidity implementation: `evm/src/PulseAuction.sol` (port of the original Cairo contract).
+- Mechanism oracle and invariants: `docs/evm/pulse-cascade-testing-spec.md`.
+- Interactive curve model (Desmos): https://www.desmos.com/calculator/1d89f93d21
+
 ## License
 
 MIT
