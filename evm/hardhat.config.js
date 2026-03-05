@@ -5,6 +5,10 @@ export default {
   plugins: [hardhatToolboxMochaEthers],
   solidity: "0.8.24",
   networks: {
+    default: {
+      type: "edr-simulated",
+      allowBlocksWithSameTimestamp: true
+    },
     localhost: {
       type: "http",
       url: "http://127.0.0.1:8545"

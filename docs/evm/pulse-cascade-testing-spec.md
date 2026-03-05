@@ -20,7 +20,6 @@ Out of scope for this phase:
 
 ## Mechanism Model (Reference Oracle)
 State tuple per epoch:
-- `curveActive`
 - `epochIndex`
 - `curveStartTime`
 - `anchorTime`
@@ -29,20 +28,28 @@ State tuple per epoch:
 Static config:
 - `k`
 - `pts`
-- `genesisPrice`
-- `genesisFloor`
+- `genesisPrice` (start ask at `openTime`)
+- `genesisFloor` (initial floor)
 - `openTime`
 
 Pricing function:
-- Before genesis (`curveActive=false`):
-  - `ask(t) = genesisPrice`
-- After genesis:
-  - `ask(t) = floorPrice + k / (t - anchorTime)` when `t > anchorTime`
-  - `ask(t) = floorPrice + k` when `t <= anchorTime` (implementation clamp)
+- `effectiveTime = max(t, openTime)`
+- `ask(t) = floorPrice + k / (effectiveTime - anchorTime)` when `effectiveTime > anchorTime`
+- `ask(t) = floorPrice + k` when `effectiveTime <= anchorTime` (implementation clamp)
 
 Reset math on sale at time `t`:
 - `lastPrice = ask(t)`
-- `premium = (t - previousCurveStartTime) * pts`
+- `deltaT = t - previousCurveStartTime`
+
+First sale (`epochIndex == 0`):
+- `premium = deltaT * pts`
+- `initialAsk = lastPrice + premium`
+- `newFloor = genesisFloor` (pinned first floor)
+- `newAnchor = t - floor(k / (initialAsk - newFloor))`
+
+Regular sale (`epochIndex >= 1`):
+- `effectiveDeltaT = max(1, deltaT)` (same-timestamp safeguard)
+- `premium = effectiveDeltaT * pts`
 - `initialAsk = lastPrice + premium`
 - `newFloor = lastPrice`
 - `newAnchor = t - floor(k / (initialAsk - newFloor))`
@@ -62,11 +69,12 @@ Pulse supports two settlement modes:
 
 ## Invariants
 ### Cascade Invariants
-- Before first sale, ask is time-invariant at `genesisPrice`.
-- Between two sales, ask is monotonic non-increasing with time.
-- Ask remains `>= floorPrice`.
-- After each sale, `floorPrice` equals executed sale price.
-- `epochIndex` increments by exactly 1 per sale.
+- Before `openTime`, `getCurrentPrice()` is pinned to the `openTime` curve ask.
+- After `openTime`, ask decays monotonically between sales and remains `>= floorPrice`.
+- First successful sale does not ratchet floor to sale price; floor remains `genesisFloor`.
+- Second and later successful sales ratchet floor to executed sale price.
+- `epochIndex` increments by exactly 1 per successful sale.
+- Same-timestamp consecutive sales do not brick state transitions.
 
 ### Safety/Atomicity Invariants
 - One bid per block is enforced.
@@ -81,7 +89,7 @@ Pulse supports two settlement modes:
 
 ## Automated Test Layout
 - `evm/test/pulseAuction.cascade.test.js`
-  - P0 mechanism tests (gates, formula, decay, reset, long-gap edge)
+  - P0 mechanism tests (open gate, curve math, first-floor pinning, ratchet, same-timestamp path)
 - `evm/test/pulseAuction.safety.test.js`
   - P1 safety + settlement correctness (ETH/ ERC20 / rollback / reentrancy)
 - `evm/test/pulseAuction.observability.test.js`

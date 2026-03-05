@@ -8,7 +8,7 @@ interface IPulseAuction {
     /// @notice Return the current ask price.
     function getCurrentPrice() external view returns (uint256);
 
-    /// @notice Whether the auction curve is active (genesis sold).
+    /// @notice Whether the auction is open (`block.timestamp >= openTime`).
     function curveActive() external view returns (bool);
 
     /// @notice Return the current epoch index.

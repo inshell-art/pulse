@@ -111,9 +111,9 @@ await auction.getState();
 (await auction.curveActive());
 (await auction.getCurrentPrice()).toString();
 
-// First (genesis) bid
-let ask = await auction.getCurrentPrice();
-await (await auction.connect(buyer).bid(ask, { value: ask })).wait();
+// First bid (safe mode: maxPrice/value above ask)
+let maxPrice = 1_000_000n;
+await (await auction.connect(buyer).bid(maxPrice, { value: maxPrice })).wait();
 
 // Observe state transition
 (await auction.curveActive());
@@ -122,8 +122,7 @@ await (await auction.connect(buyer).bid(ask, { value: ask })).wait();
 (await auction.getCurrentPrice()).toString();
 
 // Second bid with updated ask
-ask = await auction.getCurrentPrice();
-await (await auction.connect(buyer).bid(ask, { value: ask })).wait();
+await (await auction.connect(buyer).bid(maxPrice, { value: maxPrice })).wait();
 
 (await auction.epochIndex()).toString();
 (await adapter.peekNext()).toString();
@@ -134,7 +133,7 @@ await (await auction.connect(buyer).bid(ask, { value: ask })).wait();
 1. Genesis flow:
 
 - Auction closed -> open -> first successful bid.
-- Verify `curveActive` flips to `true`.
+- Verify first sale keeps floor pinned to `genesisFloor` (`getState()[3]`).
 
 2. Continuous bidding flow:
 
@@ -145,7 +144,7 @@ await (await auction.connect(buyer).bid(ask, { value: ask })).wait();
 
 - Read `getCurrentPrice()` between bids.
 - Confirm time-based decay and post-sale pump behavior.
- - You can intentionally overpay to verify surplus refund behavior.
+- You can intentionally overpay to verify surplus refund behavior.
 
 4. Guardrail checks:
 

@@ -14,7 +14,7 @@ import {
   getSettledEventFromReceipt
 } from "./helpers/fixtures.js";
 import {
-  deriveGenesisState,
+  deriveInitialState,
   deriveNextState,
   expectedAsk
 } from "./helpers/pulseModel.js";
@@ -35,29 +35,46 @@ describe("PulseAuction Observability (Solidity)", function () {
     await conn.close();
   });
 
-  it("emits correct Sale payload at genesis and matches state", async function () {
+  it("emits correct Sale payload on first sale and matches state", async function () {
     const { auction, alice, adapter } = await deployERC20Env(ethers, { startDelaySec: 0n });
-
-    const t1 = (await auction.openTime()) + 1_000n;
-    await setNextBlockTimestamp(provider, t1);
-
-    const receipt = await (await auction.connect(alice).bid(GENESIS_PRICE)).wait();
-    const sale = await getSaleEventFromReceipt(auction, receipt);
-    const settled = await getSettledEventFromReceipt(adapter, receipt);
-
-    const model = deriveGenesisState({
-      t: t1,
+    const openTime = await auction.openTime();
+    const initial = deriveInitialState({
+      openTime,
       genesisPrice: GENESIS_PRICE,
       genesisFloor: GENESIS_FLOOR,
       k: K
     });
 
+    const t1 = openTime + 1_000n;
+    const firstSalePrice = expectedAsk({
+      now: t1,
+      openTime,
+      k: K,
+      anchorTime: initial.anchorTime,
+      floorPrice: initial.floorPrice
+    });
+
+    await setNextBlockTimestamp(provider, t1);
+    const receipt = await (await auction.connect(alice).bid(LARGE_MAX_PRICE)).wait();
+    const sale = await getSaleEventFromReceipt(auction, receipt);
+    const settled = await getSettledEventFromReceipt(adapter, receipt);
+
+    const model = deriveNextState({
+      now: t1,
+      lastPrice: firstSalePrice,
+      previousStartTime: openTime,
+      k: K,
+      pts: PTS,
+      currentEpochIndex: 0n,
+      genesisFloor: GENESIS_FLOOR
+    });
+
     expect(sale.buyer).to.equal(alice.address);
-    expect(sale.price).to.equal(GENESIS_PRICE);
+    expect(sale.price).to.equal(firstSalePrice);
     expect(sale.timestamp).to.equal(t1);
     expect(sale.nextAnchorA).to.equal(model.anchorTime);
     expect(sale.nextFloorB).to.equal(model.floorPrice);
-    expect(sale.epochIndex).to.equal(1n);
+    expect(sale.epochIndex).to.equal(model.epochIndex);
     expect(settled.epochIndex).to.equal(sale.epochIndex);
     expect(settled.tokenId).to.equal(FIRST_ID);
 
@@ -71,80 +88,93 @@ describe("PulseAuction Observability (Solidity)", function () {
 
   it("emits correct Sale payload on second sale and matches state", async function () {
     const { auction, alice, adapter } = await deployERC20Env(ethers, { startDelaySec: 0n });
-
-    const t1 = (await auction.openTime()) + 1_000n;
-    const t2 = t1 + 10n;
-
-    await setNextBlockTimestamp(provider, t1);
-    await (await auction.connect(alice).bid(GENESIS_PRICE)).wait();
-
-    const genesisModel = deriveGenesisState({
-      t: t1,
+    const openTime = await auction.openTime();
+    const initial = deriveInitialState({
+      openTime,
       genesisPrice: GENESIS_PRICE,
       genesisFloor: GENESIS_FLOOR,
       k: K
     });
 
-    const askAtSecondSale = expectedAsk({
-      now: t2,
-      curveActive: true,
-      genesisPrice: GENESIS_PRICE,
+    const t1 = openTime + 1_000n;
+    const t2 = t1 + 10n;
+
+    const firstSalePrice = expectedAsk({
+      now: t1,
+      openTime,
       k: K,
-      anchorTime: genesisModel.anchorTime,
-      floorPrice: genesisModel.floorPrice
+      anchorTime: initial.anchorTime,
+      floorPrice: initial.floorPrice
+    });
+    await setNextBlockTimestamp(provider, t1);
+    await (await auction.connect(alice).bid(LARGE_MAX_PRICE)).wait();
+
+    const firstModel = deriveNextState({
+      now: t1,
+      lastPrice: firstSalePrice,
+      previousStartTime: openTime,
+      k: K,
+      pts: PTS,
+      currentEpochIndex: 0n,
+      genesisFloor: GENESIS_FLOOR
     });
 
+    const secondSalePrice = expectedAsk({
+      now: t2,
+      openTime,
+      k: K,
+      anchorTime: firstModel.anchorTime,
+      floorPrice: firstModel.floorPrice
+    });
     await setNextBlockTimestamp(provider, t2);
     const receipt = await (await auction.connect(alice).bid(LARGE_MAX_PRICE)).wait();
     const sale = await getSaleEventFromReceipt(auction, receipt);
     const settled = await getSettledEventFromReceipt(adapter, receipt);
 
-    const model = deriveNextState({
+    const secondModel = deriveNextState({
       now: t2,
-      lastPrice: askAtSecondSale,
+      lastPrice: secondSalePrice,
       previousStartTime: t1,
       k: K,
       pts: PTS,
-      currentEpochIndex: 1n
+      currentEpochIndex: 1n,
+      genesisFloor: GENESIS_FLOOR
     });
 
     expect(sale.buyer).to.equal(alice.address);
-    expect(sale.price).to.equal(askAtSecondSale);
+    expect(sale.price).to.equal(secondSalePrice);
     expect(sale.timestamp).to.equal(t2);
-    expect(sale.nextAnchorA).to.equal(model.anchorTime);
-    expect(sale.nextFloorB).to.equal(model.floorPrice);
-    expect(sale.epochIndex).to.equal(model.epochIndex);
+    expect(sale.nextAnchorA).to.equal(secondModel.anchorTime);
+    expect(sale.nextFloorB).to.equal(secondModel.floorPrice);
+    expect(sale.epochIndex).to.equal(secondModel.epochIndex);
     expect(settled.epochIndex).to.equal(sale.epochIndex);
     expect(settled.tokenId).to.equal(FIRST_ID + 1n);
 
     const [epochIndex, startTime, anchorTime, floorPrice, active] = await auction.getState();
     expect(active).to.equal(true);
-    expect(epochIndex).to.equal(model.epochIndex);
-    expect(startTime).to.equal(model.curveStartTime);
-    expect(anchorTime).to.equal(model.anchorTime);
-    expect(floorPrice).to.equal(model.floorPrice);
+    expect(epochIndex).to.equal(secondModel.epochIndex);
+    expect(startTime).to.equal(secondModel.curveStartTime);
+    expect(anchorTime).to.equal(secondModel.anchorTime);
+    expect(floorPrice).to.equal(secondModel.floorPrice);
   });
 
   it("replays multiple epochs from on-chain events without drift", async function () {
     const { auction, alice, adapter } = await deployERC20Env(ethers, { startDelaySec: 0n });
-
     const openTime = await auction.openTime();
     const saleTimes = [openTime + 1_000n, openTime + 1_010n, openTime + 1_030n, openTime + 1_075n];
 
-    let model = {
-      curveActive: false,
-      epochIndex: 0n,
-      curveStartTime: 0n,
-      anchorTime: 0n,
-      floorPrice: 0n
-    };
+    let model = deriveInitialState({
+      openTime,
+      genesisPrice: GENESIS_PRICE,
+      genesisFloor: GENESIS_FLOOR,
+      k: K
+    });
     let expectedTokenId = FIRST_ID;
 
     for (const t of saleTimes) {
       const expectedSalePrice = expectedAsk({
         now: t,
-        curveActive: model.curveActive,
-        genesisPrice: GENESIS_PRICE,
+        openTime,
         k: K,
         anchorTime: model.anchorTime,
         floorPrice: model.floorPrice
@@ -155,21 +185,15 @@ describe("PulseAuction Observability (Solidity)", function () {
       const sale = await getSaleEventFromReceipt(auction, receipt);
       const settled = await getSettledEventFromReceipt(adapter, receipt);
 
-      const nextModel = model.curveActive
-        ? deriveNextState({
-            now: t,
-            lastPrice: expectedSalePrice,
-            previousStartTime: model.curveStartTime,
-            k: K,
-            pts: PTS,
-            currentEpochIndex: model.epochIndex
-          })
-        : deriveGenesisState({
-            t,
-            genesisPrice: GENESIS_PRICE,
-            genesisFloor: GENESIS_FLOOR,
-            k: K
-          });
+      const nextModel = deriveNextState({
+        now: t,
+        lastPrice: expectedSalePrice,
+        previousStartTime: model.curveStartTime,
+        k: K,
+        pts: PTS,
+        currentEpochIndex: model.epochIndex,
+        genesisFloor: GENESIS_FLOOR
+      });
 
       expect(sale.price).to.equal(expectedSalePrice);
       expect(sale.epochIndex).to.equal(nextModel.epochIndex);
@@ -195,8 +219,7 @@ describe("PulseAuction Observability (Solidity)", function () {
 
     const expectedPrice = expectedAsk({
       now: tSample,
-      curveActive: model.curveActive,
-      genesisPrice: GENESIS_PRICE,
+      openTime,
       k: K,
       anchorTime: model.anchorTime,
       floorPrice: model.floorPrice

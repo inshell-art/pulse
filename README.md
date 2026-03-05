@@ -122,34 +122,32 @@ At any moment the ask price is deterministic from on-chain state. There is no of
 
 ### Core math (hyperbola / constant-product form)
 
-After genesis, the ask is a shifted hyperbola in time.
+The ask is always curve-based, with pre-open time clamped to `openTime`.
 
 Let:
 - `t` = current block timestamp (seconds)
+- `tEff = max(t, openTime)`
 - `a` = `anchorTime` (seconds)
 - `b` = `floorPrice` (price units, e.g. wei)
 - `k` = `curveK` (price*seconds)
 
 Then:
-- For `t > a`:
-  - `ask(t) = b + floor( k / (t - a) )`
-- For `t <= a` (safety clamp near the vertical asymptote):
+- For `tEff > a`:
+  - `ask(t) = b + floor( k / (tEff - a) )`
+- For `tEff <= a` (safety clamp near the vertical asymptote):
   - `ask(t) = b + k`
 
 Equivalent constant-product view (ignoring integer rounding):
-- `(t - a) * (ask(t) - b) ~= k`
+- `(tEff - a) * (ask(t) - b) ~= k`
 
 So between sales, the ask decays monotonically toward `b` as time increases.
 
-### Genesis (curve activation)
-
-Before the first successful bid, the curve is inactive and ask is constant:
-- `ask(t) = genesisPrice`
-
-The first successful bid (genesis) activates the curve in one shot:
+Epoch 0 is initialized at deployment:
+- `curveStartTime = openTime`
 - `floorPrice = genesisFloor`
-- `curveStartTime = t_genesis`
-- Choose `anchorTime` so the hyperbola starts at `genesisPrice` at `t_genesis`.
+- `anchorTime` chosen so `ask(openTime) = genesisPrice`
+
+Before `openTime`, bids are blocked and `getCurrentPrice()` is pinned to the `openTime` ask.
 
 ### Epoch transition (the pump + reset)
 
@@ -164,7 +162,10 @@ At sale time:
 
 Define the next epoch start price:
 - `initialAsk = lastPrice + premium`
-- `nextFloor = lastPrice`
+
+Floor transition rules:
+- First sale (`epochIndex == 0`): `nextFloor = genesisFloor` (pinned first floor)
+- Later sales (`epochIndex >= 1`): `nextFloor = lastPrice` (floor ratchet)
 
 Now choose a new `anchorTime` so the next epoch curve satisfies:
 - `ask(t_last) = initialAsk`
@@ -175,21 +176,22 @@ Using `ask(t) = b + k / (t - a)` with `b = nextFloor`, solve for `a`:
 - `t_last - a = k / (initialAsk - b)`
 - `a = t_last - floor( k / (initialAsk - b) )`
 
-Because `initialAsk - b = premium` (since `b = lastPrice`):
+Because `initialAsk - b = premium`:
 - `anchorTime = t_last - floor( k / premium )`
 
 This creates the characteristic shape:
 - Immediately after a sale, the ask jumps up by `premium = deltaT * pts`.
-- Then the ask decays hyperbolically back toward the new floor (`lastPrice`).
+- Then the ask decays hyperbolically back toward the new floor.
 
 ### Integer division and edge case
 
 All divisions are integer divisions (`floor`), so small rounding effects are expected.
 
-Important edge case:
+Important edge cases:
 - If `premium > k`, then `floor(k / premium) = 0`, so `anchorTime == curveStartTime`.
 - At exactly `t == anchorTime` the curve would be undefined, so the implementation clamps to `floor + k` when `t <= anchorTime`.
 - One second later it follows `floor + floor(k / 1)`, then `floor + floor(k / 2)`, and so on.
+- On regular sales, `effectiveDeltaT = max(1, deltaT)` so consecutive same-timestamp sales cannot brick the auction.
 
 ### Why store (`anchorTime`, `floorPrice`) instead of the whole curve?
 

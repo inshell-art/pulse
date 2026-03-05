@@ -39,7 +39,6 @@ contract PulseAuction is IPulseAuction {
     uint64 public genesisTime;
     uint256 public genesisPrice; // p0
     uint256 public genesisFloor; // b0 (genesis-only floor)
-    bool public override curveActive;
     uint64 public epochIndex;
 
     // - Price curve
@@ -83,14 +82,18 @@ contract PulseAuction is IPulseAuction {
         _validateConstructorArgs(k, _genesisPrice, _genesisFloor, initialPts);
 
         uint64 nowTs = uint64(block.timestamp);
+        uint64 _openTime = nowTs + startDelaySec;
+        uint64 initialAnchorA = _calculateAnchorTime(_genesisPrice, _genesisFloor, k, _openTime);
 
-        openTime = nowTs + startDelaySec;
-        curveActive = false;
+        openTime = _openTime;
         curveK = k;
         genesisPrice = _genesisPrice;
         genesisFloor = _genesisFloor;
         pts = initialPts;
         epochIndex = 0;
+        floorPrice = _genesisFloor;
+        curveStartTime = _openTime;
+        anchorTime = initialAnchorA;
 
         deployer = msg.sender;
         paymentToken = _paymentToken;
@@ -102,7 +105,14 @@ contract PulseAuction is IPulseAuction {
 
     /// @notice Hyperbolic ask at the current block timestamp.
     function getCurrentPrice() public view override returns (uint256) {
-        return _getCurrentPrice(uint64(block.timestamp));
+        uint64 nowTs = uint64(block.timestamp);
+        if (nowTs < openTime) nowTs = openTime;
+        return _priceAt(nowTs);
+    }
+
+    /// @notice Whether the auction is open.
+    function curveActive() public view override returns (bool) {
+        return uint64(block.timestamp) >= openTime;
     }
 
     function getEpochIndex() external view override returns (uint64) {
@@ -136,7 +146,7 @@ contract PulseAuction is IPulseAuction {
             bool active_
         )
     {
-        return (epochIndex, curveStartTime, anchorTime, floorPrice, curveActive);
+        return (epochIndex, curveStartTime, anchorTime, floorPrice, curveActive());
     }
 
     // ------------- ACTION -------------
@@ -159,7 +169,7 @@ contract PulseAuction is IPulseAuction {
         require(nowTs >= openTime, "AUCTION_NOT_OPEN");
         require(uint256(blk) > uint256(lastBlock), "ONE_BID_PER_BLOCK");
 
-        uint256 ask = curveActive ? _getCurrentPrice(nowTs) : genesisPrice;
+        uint256 ask = _priceAt(nowTs);
         require(ask <= maxPrice, "ASK_ABOVE_MAX_PRICE");
         require(mintAdapter != address(0), "ADAPTER_NOT_SET");
 
@@ -181,33 +191,31 @@ contract PulseAuction is IPulseAuction {
 
         IPulseAdapter(mintAdapter).settle(msg.sender, nextEpochIndex, data);
 
-        if (!curveActive) {
-            // Genesis activation.
-            uint256 nextFloorB = genesisFloor;
-            uint64 startTime = nowTs;
-            uint64 nextAnchorA = _calculateAnchorTime(genesisPrice, nextFloorB, curveK, startTime);
+        uint256 lastPrice = ask;
+        uint256 deltaT = uint256(nowTs - curveStartTime);
+        uint256 premium;
+        uint256 nextFloorB;
 
-            anchorTime = nextAnchorA;
-            genesisTime = startTime;
-            curveActive = true;
-            floorPrice = nextFloorB;
-            curveStartTime = startTime;
-            lastBlock = blk;
+        if (epochIndex == 0) {
+            // First sale: preserve genesis floor semantics.
+            premium = deltaT * pts;
+            nextFloorB = genesisFloor;
+            genesisTime = nowTs;
         } else {
-            // Regular update.
-            uint256 lastPrice = ask;
-            uint256 premium = uint256(nowTs - curveStartTime) * pts;
-            uint256 initialAsk = lastPrice + premium;
-            uint256 nextFloorB = lastPrice;
-            uint64 startTime = nowTs;
-            uint64 nextAnchorA = _calculateAnchorTime(initialAsk, nextFloorB, curveK, startTime);
-
-            anchorTime = nextAnchorA;
-            floorPrice = nextFloorB;
-            curveStartTime = startTime;
-            lastBlock = blk;
+            // Regular sales: floor ratchets and same-timestamp bids still progress.
+            uint256 effectiveDeltaT = deltaT == 0 ? 1 : deltaT;
+            premium = effectiveDeltaT * pts;
+            nextFloorB = lastPrice;
         }
 
+        uint256 initialAsk = lastPrice + premium;
+        uint64 startTime = nowTs;
+        uint64 nextAnchorA = _calculateAnchorTime(initialAsk, nextFloorB, curveK, startTime);
+
+        anchorTime = nextAnchorA;
+        floorPrice = nextFloorB;
+        curveStartTime = startTime;
+        lastBlock = blk;
         epochIndex = nextEpochIndex;
 
         emit Sale(msg.sender, nextEpochIndex, ask, nowTs, anchorTime, floorPrice);
@@ -223,8 +231,10 @@ contract PulseAuction is IPulseAuction {
     ) internal pure {
         require(k != 0, "K_ZERO_OR_NEGATIVE");
         require(_genesisPrice > _genesisFloor, "GAP_ZERO_OR_NEGATIVE");
+        require(_genesisPrice - _genesisFloor <= k, "START_GAP_ABOVE_K");
         require(initialPts != 0, "PTS_ZERO_OR_NEGATIVE");
         require(initialPts <= type(uint128).max, "PTS_OUT_OF_RANGE");
+        require(k / initialPts <= type(uint64).max, "K_OVER_PTS_OVERFLOW");
     }
 
     /// @dev Calculate time anchor "a" for the curve:
@@ -249,9 +259,7 @@ contract PulseAuction is IPulseAuction {
         return _curveStartTime - kOverGapU64;
     }
 
-    function _getCurrentPrice(uint64 nowTs) internal view returns (uint256) {
-        if (!curveActive) return genesisPrice;
-
+    function _priceAt(uint64 nowTs) internal view returns (uint256) {
         uint256 k = curveK;
         uint64 a = anchorTime;
         uint256 b = floorPrice;

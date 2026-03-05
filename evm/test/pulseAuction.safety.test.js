@@ -31,69 +31,62 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
   });
 
   it("reverts when ask is above maxPrice", async function () {
-    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 0n });
+    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 50n });
+    const openTime = await auction.openTime();
 
-    const t1 = (await auction.openTime()) + 1_000n;
-    await setNextBlockTimestamp(provider, t1);
-
+    await setNextBlockTimestamp(provider, openTime);
     await expect(auction.connect(alice).bid(GENESIS_PRICE - 1n)).to.be.revertedWith(
       "ASK_ABOVE_MAX_PRICE"
     );
   });
 
   it("rejects non-zero msg.value in ERC20 mode", async function () {
-    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 0n });
+    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 50n });
+    const openTime = await auction.openTime();
 
-    const t1 = (await auction.openTime()) + 1_000n;
-    await setNextBlockTimestamp(provider, t1);
-
+    await setNextBlockTimestamp(provider, openTime);
     await expect(
       auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE })
     ).to.be.revertedWith("ETH_NOT_ACCEPTED");
   });
 
   it("accepts exact msg.value and forwards ETH to treasury in native mode", async function () {
-    const { auction, alice, treasury, adapter } = await deployETHEnv(ethers, { startDelaySec: 0n });
+    const { auction, alice, treasury, adapter } = await deployETHEnv(ethers, { startDelaySec: 50n });
+    const openTime = await auction.openTime();
 
-    const t1 = (await auction.openTime()) + 1_000n;
-    await setNextBlockTimestamp(provider, t1);
-
-    const ask = await auction.getCurrentPrice();
+    await setNextBlockTimestamp(provider, openTime);
     const treasuryBefore = await ethers.provider.getBalance(treasury.address);
 
-    await (await auction.connect(alice).bid(ask, { value: ask })).wait();
+    await (await auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE })).wait();
 
     const treasuryAfter = await ethers.provider.getBalance(treasury.address);
-    expect(treasuryAfter - treasuryBefore).to.equal(ask);
+    expect(treasuryAfter - treasuryBefore).to.equal(GENESIS_PRICE);
     expect(await auction.curveActive()).to.equal(true);
     expect(await adapter.peekNext()).to.equal(FIRST_ID + 1n);
   });
 
   it("reverts when msg.value is below ask in native mode", async function () {
-    const { auction, alice } = await deployETHEnv(ethers, { startDelaySec: 0n });
+    const { auction, alice } = await deployETHEnv(ethers, { startDelaySec: 50n });
+    const openTime = await auction.openTime();
 
-    const t1 = (await auction.openTime()) + 1_000n;
-    await setNextBlockTimestamp(provider, t1);
-
-    await expect(
-      auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE - 1n })
-    ).to.be.revertedWith("INVALID_MSG_VALUE");
+    await setNextBlockTimestamp(provider, openTime);
+    await expect(auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE - 1n })).to.be.revertedWith(
+      "INVALID_MSG_VALUE"
+    );
   });
 
   it("accepts overpay and only forwards ask to treasury in native mode", async function () {
-    const { auction, alice, treasury } = await deployETHEnv(ethers, { startDelaySec: 0n });
+    const { auction, alice, treasury } = await deployETHEnv(ethers, { startDelaySec: 50n });
+    const openTime = await auction.openTime();
 
-    const t1 = (await auction.openTime()) + 1_000n;
-    await setNextBlockTimestamp(provider, t1);
-
-    const ask = await auction.getCurrentPrice();
+    await setNextBlockTimestamp(provider, openTime);
     const overpay = 77n;
     const treasuryBefore = await ethers.provider.getBalance(treasury.address);
 
-    await (await auction.connect(alice).bid(ask, { value: ask + overpay })).wait();
+    await (await auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE + overpay })).wait();
 
     const treasuryAfter = await ethers.provider.getBalance(treasury.address);
-    expect(treasuryAfter - treasuryBefore).to.equal(ask);
+    expect(treasuryAfter - treasuryBefore).to.equal(GENESIS_PRICE);
     expect(await ethers.provider.getBalance(await auction.getAddress())).to.equal(0n);
   });
 
@@ -115,7 +108,7 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
 
     const t1 = (await auction.openTime()) + 1_000n;
     await setNextBlockTimestamp(provider, t1);
-    await expect(auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE })).to.be.revertedWith(
+    await expect(auction.connect(alice).bid(LARGE_MAX_PRICE, { value: GENESIS_PRICE })).to.be.revertedWith(
       "ADAPTER_NOT_SET"
     );
 
@@ -154,7 +147,7 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
     ).to.be.revertedWith("ONE_BID_PER_BLOCK");
 
     // Entire tx reverted, so the first bid was rolled back too.
-    expect(await auction.curveActive()).to.equal(false);
+    expect(await auction.epochIndex()).to.equal(0n);
   });
 
   it("only allows auction to call adapter.settle", async function () {
@@ -179,8 +172,8 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
     const t1 = (await auction.openTime()) + 1_000n;
     await setNextBlockTimestamp(provider, t1);
 
-    await expect(auction.connect(alice).bid(GENESIS_PRICE)).to.be.revertedWith("ADAPTER_REVERT");
-    expect(await auction.curveActive()).to.equal(false);
+    await expect(auction.connect(alice).bid(LARGE_MAX_PRICE)).to.be.revertedWith("ADAPTER_REVERT");
+    expect(await auction.epochIndex()).to.equal(0n);
     expect(await adapter.peekNext()).to.equal(FIRST_ID);
   });
 
@@ -191,6 +184,6 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
     await setNextBlockTimestamp(provider, t1);
 
     await expect(auction.connect(alice).bid(LARGE_MAX_PRICE)).to.be.revertedWith("REENTRANCY");
-    expect(await auction.curveActive()).to.equal(false);
+    expect(await auction.epochIndex()).to.equal(0n);
   });
 });

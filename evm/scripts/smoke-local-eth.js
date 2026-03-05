@@ -18,25 +18,38 @@ async function main() {
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
   const adapter = await ethers.getContractAt("StubAdapter", deployment.contracts.stubAdapter);
 
-  const ask = await auction.getCurrentPrice();
+  const quotedAsk = await auction.getCurrentPrice();
   const treasuryBefore = await ethers.provider.getBalance(deployment.treasury);
 
-  const tx = await auction.connect(buyer).bid(ask, { value: ask });
+  const tx = await auction.connect(buyer).bid(quotedAsk, { value: quotedAsk });
   const receipt = await tx.wait();
 
+  const saleLogs = await auction.queryFilter(
+    auction.filters.Sale(),
+    receipt.blockNumber,
+    receipt.blockNumber
+  );
+  if (saleLogs.length === 0) {
+    throw new Error("Sale event not found in smoke tx block");
+  }
+  const salePrice = saleLogs[0].args.price;
+
   const treasuryAfter = await ethers.provider.getBalance(deployment.treasury);
-  const curveActive = await auction.curveActive();
+  const isOpen = await auction.curveActive();
   const epochIndex = await auction.epochIndex();
   const nextId = await adapter.peekNext();
+  const treasuryDelta = treasuryAfter - treasuryBefore;
 
   const summary = {
     deployFile,
     network: conn.networkName,
     buyer: buyer.address,
     txHash: receipt.hash,
-    askWei: ask.toString(),
-    treasuryDeltaWei: (treasuryAfter - treasuryBefore).toString(),
-    curveActive,
+    quotedAskWei: quotedAsk.toString(),
+    salePriceWei: salePrice.toString(),
+    treasuryDeltaWei: treasuryDelta.toString(),
+    treasuryDeltaMatchesSalePrice: treasuryDelta === salePrice,
+    isOpen,
     epochIndex: epochIndex.toString(),
     adapterNextId: nextId.toString()
   };
@@ -51,4 +64,3 @@ main().catch((err) => {
   console.error(err);
   process.exitCode = 1;
 });
-

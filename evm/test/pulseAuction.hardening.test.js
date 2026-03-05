@@ -84,6 +84,24 @@ describe("PulseAuction Hardening (Solidity)", function () {
     );
   });
 
+  it("constructor rejects start ask gap above k", async function () {
+    const [, , , treasury] = await ethers.getSigners();
+
+    await expectConstructorRevert(
+      [0n, 50n, 200n, 100n, 1n, ethers.ZeroAddress, treasury.address, ethers.ZeroAddress],
+      "START_GAP_ABOVE_K"
+    );
+  });
+
+  it("constructor rejects k/pts that exceeds uint64", async function () {
+    const [, , , treasury] = await ethers.getSigners();
+
+    await expectConstructorRevert(
+      [0n, 1n << 65n, (1n << 65n) + 1n, 1n, 1n, ethers.ZeroAddress, treasury.address, ethers.ZeroAddress],
+      "K_OVER_PTS_OVERFLOW"
+    );
+  });
+
   it("initializeMintAdapter is blocked when constructor already set adapter", async function () {
     const [deployer, alice, , treasury] = await ethers.getSigners();
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
@@ -136,7 +154,7 @@ describe("PulseAuction Hardening (Solidity)", function () {
     await expect(auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE })).to.be.revertedWith(
       "ETH_TRANSFER_FAILED"
     );
-    expect(await auction.curveActive()).to.equal(false);
+    expect(await auction.epochIndex()).to.equal(0n);
     expect(await adapter.peekNext()).to.equal(FIRST_ID);
   });
 
@@ -160,7 +178,7 @@ describe("PulseAuction Hardening (Solidity)", function () {
 
     const treasuryAfter = await ethers.provider.getBalance(treasury.address);
     expect(treasuryAfter - treasuryBefore).to.equal(0n);
-    expect(await auction.curveActive()).to.equal(false);
+    expect(await auction.epochIndex()).to.equal(0n);
     expect(await adapter.peekNext()).to.equal(FIRST_ID);
   });
 
@@ -193,7 +211,7 @@ describe("PulseAuction Hardening (Solidity)", function () {
     await setNextBlockTimestamp(provider, t1);
 
     await expect(auction.connect(alice).bid(GENESIS_PRICE)).to.be.revertedWith("TRANSFER_FROM_FAILED");
-    expect(await auction.curveActive()).to.equal(false);
+    expect(await auction.epochIndex()).to.equal(0n);
     expect(await adapter.peekNext()).to.equal(FIRST_ID);
   });
 
@@ -261,4 +279,3 @@ describe("PulseAuction Hardening (Solidity)", function () {
     expect(await adapter.peekNext()).to.equal(FIRST_ID + BigInt(iterations));
   });
 });
-

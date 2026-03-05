@@ -37,7 +37,6 @@ async function main() {
   const adapter = await ethers.getContractAt("StubAdapter", deployment.contracts.stubAdapter);
 
   const k = toBigInt(deployment.config.k);
-  const genesisPrice = toBigInt(deployment.config.genesisPrice);
   const openTime = toBigInt(await auction.openTime());
 
   const latestBlock = await ethers.provider.getBlock("latest");
@@ -58,12 +57,9 @@ async function main() {
       saleTime += WAIT_SCHEDULE_SEC[i];
     }
 
-    const curveActiveBefore = await auction.curveActive();
     const stateBefore = await auction.getState();
-
-    const expectedAsk = curveActiveBefore
-      ? askAt(saleTime, k, toBigInt(stateBefore[2]), toBigInt(stateBefore[3]))
-      : genesisPrice;
+    const priceTime = saleTime < openTime ? openTime : saleTime;
+    const expectedAsk = askAt(priceTime, k, toBigInt(stateBefore[2]), toBigInt(stateBefore[3]));
 
     const treasuryBefore = await ethers.provider.getBalance(deployment.treasury);
 
