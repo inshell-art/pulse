@@ -40,18 +40,10 @@ Pricing function:
 Reset math on sale at time `t`:
 - `lastPrice = ask(t)`
 - `deltaT = t - previousCurveStartTime`
-
-First sale (`epochIndex == 0`):
-- `premium = deltaT * pts`
-- `initialAsk = lastPrice + premium`
-- `newFloor = genesisFloor` (pinned first floor)
-- `newAnchor = t - floor(k / (initialAsk - newFloor))`
-
-Regular sale (`epochIndex >= 1`):
 - `effectiveDeltaT = max(1, deltaT)` (same-timestamp safeguard)
 - `premium = effectiveDeltaT * pts`
 - `initialAsk = lastPrice + premium`
-- `newFloor = lastPrice`
+- `newFloor = lastPrice` (pure ratchet for every sale, including the first)
 - `newAnchor = t - floor(k / (initialAsk - newFloor))`
 
 Implementation note:
@@ -71,8 +63,7 @@ Pulse supports two settlement modes:
 ### Cascade Invariants
 - Before `openTime`, `getCurrentPrice()` is pinned to the `openTime` curve ask.
 - After `openTime`, ask decays monotonically between sales and remains `>= floorPrice`.
-- First successful sale does not ratchet floor to sale price; floor remains `genesisFloor`.
-- Second and later successful sales ratchet floor to executed sale price.
+- Every successful sale ratchets floor to the executed sale price.
 - `epochIndex` increments by exactly 1 per successful sale.
 - Same-timestamp consecutive sales do not brick state transitions.
 
@@ -89,7 +80,7 @@ Pulse supports two settlement modes:
 
 ## Automated Test Layout
 - `evm/test/pulseAuction.cascade.test.js`
-  - P0 mechanism tests (open gate, curve math, first-floor pinning, ratchet, same-timestamp path)
+  - P0 mechanism tests (open gate, curve math, pure ratchet, same-timestamp path)
 - `evm/test/pulseAuction.safety.test.js`
   - P1 safety + settlement correctness (ETH/ ERC20 / rollback / reentrancy)
 - `evm/test/pulseAuction.observability.test.js`

@@ -1,0 +1,66 @@
+name: EVM Local Devnet Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  evm-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: evm/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run deploy/smoke/scenario on local devnet
+        run: |
+          set -euo pipefail
+
+          nohup npm run node > /tmp/hardhat-node.log 2>&1 &
+          NODE_PID=$!
+
+          cleanup() {
+            kill "$NODE_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in {1..120}; do
+            if curl -s -X POST http://127.0.0.1:8545 \
+              -H 'content-type: application/json' \
+              --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' \
+              >/dev/null 2>&1; then
+              break
+            fi
+            sleep 0.25
+          done
+
+          npm run deploy:local:eth
+          npm run smoke:local:eth
+          npm run scenario:local:eth
+
+      - name: Upload devnet log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardhat-node-log
+          path: /tmp/hardhat-node.log

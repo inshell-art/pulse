@@ -61,6 +61,7 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
 
     const treasuryAfter = await ethers.provider.getBalance(treasury.address);
     expect(treasuryAfter - treasuryBefore).to.equal(GENESIS_PRICE);
+    expect((await auction.getState())[3]).to.equal(GENESIS_PRICE);
     expect(await auction.curveActive()).to.equal(true);
     expect(await adapter.peekNext()).to.equal(FIRST_ID + 1n);
   });

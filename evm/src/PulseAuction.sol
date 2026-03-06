@@ -38,7 +38,7 @@ contract PulseAuction is IPulseAuction {
     uint64 public openTime;
     uint64 public genesisTime;
     uint256 public genesisPrice; // p0
-    uint256 public genesisFloor; // b0 (genesis-only floor)
+    uint256 public genesisFloor; // b0 (initial floor at open)
     uint64 public epochIndex;
 
     // - Price curve
@@ -163,7 +163,6 @@ contract PulseAuction is IPulseAuction {
     function bid(uint256 maxPrice) external payable override nonReentrant {
         uint64 nowTs = uint64(block.timestamp);
         uint64 blk = uint64(block.number);
-        bytes memory data = "";
         uint64 nextEpochIndex = epochIndex + 1;
 
         require(nowTs >= openTime, "AUCTION_NOT_OPEN");
@@ -173,48 +172,24 @@ contract PulseAuction is IPulseAuction {
         require(ask <= maxPrice, "ASK_ABOVE_MAX_PRICE");
         require(mintAdapter != address(0), "ADAPTER_NOT_SET");
 
-        // Payment first, then delivery.
-        if (paymentToken == address(0)) {
-            require(msg.value >= ask, "INVALID_MSG_VALUE");
-            (bool sent,) = payable(treasury).call{value: ask}("");
-            require(sent, "ETH_TRANSFER_FAILED");
+        _collectPayment(ask);
+        IPulseAdapter(mintAdapter).settle(msg.sender, nextEpochIndex, "");
 
-            uint256 refund = msg.value - ask;
-            if (refund > 0) {
-                (bool refunded,) = payable(msg.sender).call{value: refund}("");
-                require(refunded, "ETH_REFUND_FAILED");
-            }
-        } else {
-            require(msg.value == 0, "ETH_NOT_ACCEPTED");
-            paymentToken.safeTransferFrom(msg.sender, treasury, ask);
-        }
-
-        IPulseAdapter(mintAdapter).settle(msg.sender, nextEpochIndex, data);
-
-        uint256 lastPrice = ask;
         uint256 deltaT = uint256(nowTs - curveStartTime);
-        uint256 premium;
-        uint256 nextFloorB;
+        uint256 effectiveDeltaT = deltaT == 0 ? 1 : deltaT;
+        uint256 premium = effectiveDeltaT * pts;
+        uint256 nextFloorB = ask;
 
         if (epochIndex == 0) {
-            // First sale: preserve genesis floor semantics.
-            premium = deltaT * pts;
-            nextFloorB = genesisFloor;
             genesisTime = nowTs;
-        } else {
-            // Regular sales: floor ratchets and same-timestamp bids still progress.
-            uint256 effectiveDeltaT = deltaT == 0 ? 1 : deltaT;
-            premium = effectiveDeltaT * pts;
-            nextFloorB = lastPrice;
         }
 
-        uint256 initialAsk = lastPrice + premium;
-        uint64 startTime = nowTs;
-        uint64 nextAnchorA = _calculateAnchorTime(initialAsk, nextFloorB, curveK, startTime);
+        uint256 initialAsk = ask + premium;
+        uint64 nextAnchorA = _calculateAnchorTime(initialAsk, nextFloorB, curveK, nowTs);
 
         anchorTime = nextAnchorA;
         floorPrice = nextFloorB;
-        curveStartTime = startTime;
+        curveStartTime = nowTs;
         lastBlock = blk;
         epochIndex = nextEpochIndex;
 
@@ -235,6 +210,25 @@ contract PulseAuction is IPulseAuction {
         require(initialPts != 0, "PTS_ZERO_OR_NEGATIVE");
         require(initialPts <= type(uint128).max, "PTS_OUT_OF_RANGE");
         require(k / initialPts <= type(uint64).max, "K_OVER_PTS_OVERFLOW");
+    }
+
+    function _collectPayment(uint256 ask) internal {
+        // Payment first, then delivery.
+        if (paymentToken == address(0)) {
+            require(msg.value >= ask, "INVALID_MSG_VALUE");
+            (bool sent,) = payable(treasury).call{value: ask}("");
+            require(sent, "ETH_TRANSFER_FAILED");
+
+            uint256 refund = msg.value - ask;
+            if (refund > 0) {
+                (bool refunded,) = payable(msg.sender).call{value: refund}("");
+                require(refunded, "ETH_REFUND_FAILED");
+            }
+            return;
+        }
+
+        require(msg.value == 0, "ETH_NOT_ACCEPTED");
+        paymentToken.safeTransferFrom(msg.sender, treasury, ask);
     }
 
     /// @dev Calculate time anchor "a" for the curve:

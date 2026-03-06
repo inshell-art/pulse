@@ -40,15 +40,13 @@ export function deriveNextState({
   previousStartTime,
   k,
   pts,
-  currentEpochIndex,
-  genesisFloor
+  currentEpochIndex
 }) {
-  const isFirstSale = currentEpochIndex === 0n;
   const deltaT = now - previousStartTime;
-  const effectiveDeltaT = isFirstSale ? deltaT : (deltaT === 0n ? 1n : deltaT);
+  const effectiveDeltaT = deltaT === 0n ? 1n : deltaT;
   const premium = effectiveDeltaT * pts;
   const initialAsk = lastPrice + premium;
-  const nextFloor = isFirstSale ? genesisFloor : lastPrice;
+  const nextFloor = lastPrice;
 
   return {
     epochIndex: currentEpochIndex + 1n,

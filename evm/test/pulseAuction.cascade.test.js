@@ -142,18 +142,62 @@ describe("PulseAuction Cascade (Solidity)", function () {
     }
   });
 
-  it("first sale at open keeps floor pinned to genesisFloor", async function () {
+  it("first sale at open pure-ratchets floor and uses minimum premium", async function () {
     const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 50n });
     const openTime = await auction.openTime();
 
     await setNextBlockTimestamp(provider, openTime);
-    const ask = await auction.getCurrentPrice();
-    await (await auction.connect(alice).bid(ask)).wait();
+    const firstAsk = await auction.getCurrentPrice();
+    await (await auction.connect(alice).bid(firstAsk)).wait();
 
-    const [epochIndex, startTime, , floorPrice] = await auction.getState();
+    const [epochIndex, startTime, anchorTime, floorPrice] = await auction.getState();
+    const immediateAsk = expectedAsk({
+      now: startTime,
+      openTime,
+      k: K,
+      anchorTime,
+      floorPrice
+    });
+
     expect(epochIndex).to.equal(1n);
     expect(startTime).to.equal(openTime);
-    expect(floorPrice).to.equal(GENESIS_FLOOR);
+    expect(floorPrice).to.equal(firstAsk);
+    expect(immediateAsk - floorPrice).to.equal(PTS);
+  });
+
+  it("first sale pure-ratchets floor to executed sale price", async function () {
+    const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 0n });
+    const openTime = await auction.openTime();
+    const initial = deriveInitialState({
+      openTime,
+      genesisPrice: GENESIS_PRICE,
+      genesisFloor: GENESIS_FLOOR,
+      k: K
+    });
+
+    const t1 = openTime + 1_000n;
+    const firstSalePrice = expectedAsk({
+      now: t1,
+      openTime,
+      k: K,
+      anchorTime: initial.anchorTime,
+      floorPrice: initial.floorPrice
+    });
+    await setNextBlockTimestamp(provider, t1);
+    await (await auction.connect(alice).bid(LARGE_MAX_PRICE)).wait();
+
+    const firstState = deriveNextState({
+      now: t1,
+      lastPrice: firstSalePrice,
+      previousStartTime: openTime,
+      k: K,
+      pts: PTS,
+      currentEpochIndex: 0n
+    });
+
+    const [, , , floorPrice] = await auction.getState();
+    expect(floorPrice).to.equal(firstSalePrice);
+    expect(firstState.floorPrice).to.equal(firstSalePrice);
   });
 
   it("second sale ratchets floor to previous sale price", async function () {
@@ -183,8 +227,7 @@ describe("PulseAuction Cascade (Solidity)", function () {
       previousStartTime: openTime,
       k: K,
       pts: PTS,
-      currentEpochIndex: 0n,
-      genesisFloor: GENESIS_FLOOR
+      currentEpochIndex: 0n
     });
 
     const t2 = t1 + 10n;
@@ -232,8 +275,7 @@ describe("PulseAuction Cascade (Solidity)", function () {
       previousStartTime: openTime,
       k: K,
       pts: PTS,
-      currentEpochIndex: 0n,
-      genesisFloor: GENESIS_FLOOR
+      currentEpochIndex: 0n
     });
 
     const secondSalePrice = expectedAsk({
@@ -252,8 +294,7 @@ describe("PulseAuction Cascade (Solidity)", function () {
       previousStartTime: t1,
       k: K,
       pts: PTS,
-      currentEpochIndex: 1n,
-      genesisFloor: GENESIS_FLOOR
+      currentEpochIndex: 1n
     });
 
     await setNextBlockTimestamp(provider, t3);

@@ -105,7 +105,7 @@ async function main() {
         toBigInt(sale.nextAnchorA) === anchorTime && toBigInt(sale.nextFloorB) === floorPrice,
       settledEpochMatchesSale: toBigInt(settled.epochIndex) === epochIndex,
       tokenIdMonotonic: toBigInt(settled.tokenId) === previousTokenId + 1n,
-      priceAboveOrEqualFloor: toBigInt(sale.price) >= floorPrice
+      floorEqualsSalePrice: floorPrice === toBigInt(sale.price)
     };
 
     records.push({

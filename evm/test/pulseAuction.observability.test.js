@@ -65,8 +65,7 @@ describe("PulseAuction Observability (Solidity)", function () {
       previousStartTime: openTime,
       k: K,
       pts: PTS,
-      currentEpochIndex: 0n,
-      genesisFloor: GENESIS_FLOOR
+      currentEpochIndex: 0n
     });
 
     expect(sale.buyer).to.equal(alice.address);
@@ -74,6 +73,7 @@ describe("PulseAuction Observability (Solidity)", function () {
     expect(sale.timestamp).to.equal(t1);
     expect(sale.nextAnchorA).to.equal(model.anchorTime);
     expect(sale.nextFloorB).to.equal(model.floorPrice);
+    expect(sale.nextFloorB).to.equal(sale.price);
     expect(sale.epochIndex).to.equal(model.epochIndex);
     expect(settled.epochIndex).to.equal(sale.epochIndex);
     expect(settled.tokenId).to.equal(FIRST_ID);
@@ -115,8 +115,7 @@ describe("PulseAuction Observability (Solidity)", function () {
       previousStartTime: openTime,
       k: K,
       pts: PTS,
-      currentEpochIndex: 0n,
-      genesisFloor: GENESIS_FLOOR
+      currentEpochIndex: 0n
     });
 
     const secondSalePrice = expectedAsk({
@@ -137,8 +136,7 @@ describe("PulseAuction Observability (Solidity)", function () {
       previousStartTime: t1,
       k: K,
       pts: PTS,
-      currentEpochIndex: 1n,
-      genesisFloor: GENESIS_FLOOR
+      currentEpochIndex: 1n
     });
 
     expect(sale.buyer).to.equal(alice.address);
@@ -191,8 +189,7 @@ describe("PulseAuction Observability (Solidity)", function () {
         previousStartTime: model.curveStartTime,
         k: K,
         pts: PTS,
-        currentEpochIndex: model.epochIndex,
-        genesisFloor: GENESIS_FLOOR
+        currentEpochIndex: model.epochIndex
       });
 
       expect(sale.price).to.equal(expectedSalePrice);

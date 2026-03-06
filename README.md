@@ -156,16 +156,16 @@ Each successful bid at time `t_last` closes an epoch and sets parameters for the
 At sale time:
 - `lastPrice = ask(t_last)` (the executed sale price)
 - `deltaT = t_last - previousCurveStartTime`
-- `premium = deltaT * pts`
+- `effectiveDeltaT = max(1, deltaT)`
+- `premium = effectiveDeltaT * pts`
 
 (`pts` is price-time scale: price units per second)
 
 Define the next epoch start price:
 - `initialAsk = lastPrice + premium`
+- `nextFloor = lastPrice`
 
-Floor transition rules:
-- First sale (`epochIndex == 0`): `nextFloor = genesisFloor` (pinned first floor)
-- Later sales (`epochIndex >= 1`): `nextFloor = lastPrice` (floor ratchet)
+This pure-ratchet rule applies to every completed sale, including the first one after open.
 
 Now choose a new `anchorTime` so the next epoch curve satisfies:
 - `ask(t_last) = initialAsk`
@@ -180,7 +180,7 @@ Because `initialAsk - b = premium`:
 - `anchorTime = t_last - floor( k / premium )`
 
 This creates the characteristic shape:
-- Immediately after a sale, the ask jumps up by `premium = deltaT * pts`.
+- Immediately after a sale, the ask jumps up by `premium = effectiveDeltaT * pts`.
 - Then the ask decays hyperbolically back toward the new floor.
 
 ### Integer division and edge case
@@ -191,7 +191,7 @@ Important edge cases:
 - If `premium > k`, then `floor(k / premium) = 0`, so `anchorTime == curveStartTime`.
 - At exactly `t == anchorTime` the curve would be undefined, so the implementation clamps to `floor + k` when `t <= anchorTime`.
 - One second later it follows `floor + floor(k / 1)`, then `floor + floor(k / 2)`, and so on.
-- On regular sales, `effectiveDeltaT = max(1, deltaT)` so consecutive same-timestamp sales cannot brick the auction.
+- `effectiveDeltaT = max(1, deltaT)` applies to all sales, so same-timestamp sales cannot brick the auction.
 
 ### Why store (`anchorTime`, `floorPrice`) instead of the whole curve?
 

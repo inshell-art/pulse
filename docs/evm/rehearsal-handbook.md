@@ -133,7 +133,7 @@ await (await auction.connect(buyer).bid(maxPrice, { value: maxPrice })).wait();
 1. Genesis flow:
 
 - Auction closed -> open -> first successful bid.
-- Verify first sale keeps floor pinned to `genesisFloor` (`getState()[3]`).
+- Verify first sale ratchets floor to executed sale price (`getState()[3]` vs sale price).
 
 2. Continuous bidding flow:
 
