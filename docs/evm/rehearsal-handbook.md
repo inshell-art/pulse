@@ -5,7 +5,7 @@ This runbook is for learning and rehearsing `PulseAuction` behavior locally.
 ## 1. One-time setup
 
 ```bash
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npm install
 ```
 
@@ -14,7 +14,7 @@ npm install
 Terminal A:
 
 ```bash
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npm run node
 ```
 
@@ -37,7 +37,7 @@ Expected chain id: `0x7a69` (31337).
 Terminal B:
 
 ```bash
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npm run deploy:local:eth
 ```
 
@@ -55,7 +55,7 @@ Payment token is ETH (`paymentToken = address(0)`).
 ## 4. Run baseline smoke test
 
 ```bash
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npm run smoke:local:eth
 ```
 
@@ -68,7 +68,7 @@ What it does:
 ## 5. Run cascade scenario
 
 ```bash
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npm run scenario:local:eth
 ```
 
@@ -79,7 +79,7 @@ This executes a timed bid schedule and writes:
 Check summary quickly:
 
 ```bash
-jq '.summary' /Users/bigu/Projects/pulse/evm/deployments/reports/localhost-cascade-eth-report.json
+jq '.summary' ~/Projects/pulse/evm/deployments/reports/localhost-cascade-eth-report.json
 ```
 
 Expected:
@@ -91,7 +91,7 @@ Expected:
 Open Hardhat console:
 
 ```bash
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npx hardhat console --network localhost
 ```
 
@@ -162,10 +162,10 @@ To restart from a fresh chain:
 ## 9. Known-good command sequence
 
 ```bash
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npm run node
 # new terminal
-cd /Users/bigu/Projects/pulse/evm
+cd ~/Projects/pulse/evm
 npm run deploy:local:eth
 npm run smoke:local:eth
 npm run scenario:local:eth

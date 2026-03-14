@@ -60,7 +60,7 @@ npm run scenario:local:eth
 Verify scenario summary:
 
 ```bash
-jq '.summary' /Users/bigu/Projects/pulse/evm/deployments/reports/localhost-cascade-eth-report.json
+jq '.summary' ~/Projects/pulse/evm/deployments/reports/localhost-cascade-eth-report.json
 ```
 
 Expected: `"allChecksPass": true`.
