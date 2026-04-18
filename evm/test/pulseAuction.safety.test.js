@@ -121,6 +121,7 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
       "ONLY_DEPLOYER"
     );
     await expect(auction.initializeMintAdapter(ethers.ZeroAddress)).to.be.revertedWith("INVALID_ADAPTER");
+    await expect(auction.initializeMintAdapter(alice.address)).to.be.revertedWith("INVALID_ADAPTER");
     await (await auction.initializeMintAdapter(await adapter.getAddress())).wait();
     await expect(
       auction.initializeMintAdapter(await adapter.getAddress())

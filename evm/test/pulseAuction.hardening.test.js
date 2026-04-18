@@ -104,6 +104,9 @@ describe("PulseAuction Hardening (Solidity)", function () {
 
   it("initializeMintAdapter is blocked when constructor already set adapter", async function () {
     const [deployer, alice, , treasury] = await ethers.getSigners();
+    const Adapter = await ethers.getContractFactory("StubAdapter", deployer);
+    const adapter = await Adapter.deploy(alice.address, FIRST_ID);
+    await adapter.waitForDeployment();
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
 
     const auction = await Auction.deploy(
@@ -114,12 +117,37 @@ describe("PulseAuction Hardening (Solidity)", function () {
       PTS,
       ethers.ZeroAddress,
       treasury.address,
-      alice.address
+      await adapter.getAddress()
     );
     await auction.waitForDeployment();
 
     await expect(auction.initializeMintAdapter(deployer.address)).to.be.revertedWith(
       "ADAPTER_ALREADY_SET"
+    );
+  });
+
+  it("constructor rejects zero treasury", async function () {
+    await expectConstructorRevert(
+      [0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress],
+      "ZERO_TREASURY"
+    );
+  });
+
+  it("constructor rejects non-contract payment token", async function () {
+    const [deployer, , , treasury] = await ethers.getSigners();
+
+    await expectConstructorRevert(
+      [0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, deployer.address, treasury.address, ethers.ZeroAddress],
+      "INVALID_PAYMENT_TOKEN"
+    );
+  });
+
+  it("constructor rejects non-contract adapter when nonzero", async function () {
+    const [deployer, , , treasury] = await ethers.getSigners();
+
+    await expectConstructorRevert(
+      [0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, treasury.address, deployer.address],
+      "INVALID_ADAPTER"
     );
   });
 

@@ -80,6 +80,13 @@ contract PulseAuction is IPulseAuction {
         address _mintAdapter
     ) {
         _validateConstructorArgs(k, _genesisPrice, _genesisFloor, initialPts);
+        require(_treasury != address(0), "ZERO_TREASURY");
+        if (_paymentToken != address(0)) {
+            require(_paymentToken.code.length > 0, "INVALID_PAYMENT_TOKEN");
+        }
+        if (_mintAdapter != address(0)) {
+            require(_mintAdapter.code.length > 0, "INVALID_ADAPTER");
+        }
 
         uint64 nowTs = uint64(block.timestamp);
         uint64 _openTime = nowTs + startDelaySec;
@@ -156,6 +163,7 @@ contract PulseAuction is IPulseAuction {
         require(msg.sender == deployer, "ONLY_DEPLOYER");
         require(mintAdapter == address(0), "ADAPTER_ALREADY_SET");
         require(adapter != address(0), "INVALID_ADAPTER");
+        require(adapter.code.length > 0, "INVALID_ADAPTER");
         mintAdapter = adapter;
     }
 
