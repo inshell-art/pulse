@@ -31,6 +31,7 @@ contract PulseAuction is IPulseAuction {
         uint64 nextAnchorA,
         uint256 nextFloorB
     );
+    event LaunchConfigured(uint64 indexed openTime, uint64 deployedAt);
 
     // ------------- STORAGE -------------
 
@@ -70,7 +71,7 @@ contract PulseAuction is IPulseAuction {
     // ------------- CONSTRUCTOR -------------
 
     constructor(
-        uint64 startDelaySec,
+        uint64 openTime_,
         uint256 k,
         uint256 _genesisPrice,
         uint256 _genesisFloor,
@@ -89,7 +90,8 @@ contract PulseAuction is IPulseAuction {
         }
 
         uint64 nowTs = uint64(block.timestamp);
-        uint64 _openTime = nowTs + startDelaySec;
+        require(openTime_ >= nowTs, "OPEN_TIME_IN_PAST");
+        uint64 _openTime = openTime_;
         uint64 initialAnchorA = _calculateAnchorTime(_genesisPrice, _genesisFloor, k, _openTime);
 
         openTime = _openTime;
@@ -106,6 +108,8 @@ contract PulseAuction is IPulseAuction {
         paymentToken = _paymentToken;
         treasury = _treasury;
         mintAdapter = _mintAdapter;
+
+        emit LaunchConfigured(_openTime, nowTs);
     }
 
     // ------------- VIEW -------------
