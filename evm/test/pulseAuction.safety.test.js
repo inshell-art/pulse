@@ -30,6 +30,11 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
     await conn.close();
   });
 
+  async function futureOpenTime(delay = 60n) {
+    const latest = await ethers.provider.getBlock("latest");
+    return BigInt(latest.timestamp) + delay;
+  }
+
   it("reverts when ask is above maxPrice", async function () {
     const { auction, alice } = await deployERC20Env(ethers, { startDelaySec: 50n });
     const openTime = await auction.openTime();
@@ -91,12 +96,12 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
     expect(await ethers.provider.getBalance(await auction.getAddress())).to.equal(0n);
   });
 
-  it("requires adapter initialization before bidding and allows one-time deployer init", async function () {
+  it("allows one-time deployer adapter initialization before open", async function () {
     const [deployer, alice, , treasury] = await ethers.getSigners();
 
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
     const auction = await Auction.deploy(
-      0n,
+      await futureOpenTime(),
       K,
       GENESIS_PRICE,
       GENESIS_FLOOR,
@@ -106,12 +111,6 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
       ethers.ZeroAddress
     );
     await auction.waitForDeployment();
-
-    const t1 = (await auction.openTime()) + 1_000n;
-    await setNextBlockTimestamp(provider, t1);
-    await expect(auction.connect(alice).bid(LARGE_MAX_PRICE, { value: GENESIS_PRICE })).to.be.revertedWith(
-      "ADAPTER_NOT_SET"
-    );
 
     const Adapter = await ethers.getContractFactory("StubAdapter", deployer);
     const adapter = await Adapter.deploy(await auction.getAddress(), FIRST_ID);
@@ -126,6 +125,33 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
     await expect(
       auction.initializeMintAdapter(await adapter.getAddress())
     ).to.be.revertedWith("ADAPTER_ALREADY_SET");
+  });
+
+  it("requires adapter initialization before bidding and rejects initialization after open", async function () {
+    const [deployer, , , treasury] = await ethers.getSigners();
+
+    const Auction = await ethers.getContractFactory("PulseAuction", deployer);
+    const auction = await Auction.deploy(
+      await futureOpenTime(),
+      K,
+      GENESIS_PRICE,
+      GENESIS_FLOOR,
+      PTS,
+      ethers.ZeroAddress,
+      treasury.address,
+      ethers.ZeroAddress
+    );
+    await auction.waitForDeployment();
+
+    const openTime = await auction.openTime();
+    await setNextBlockTimestamp(provider, openTime);
+    await expect(auction.bid(LARGE_MAX_PRICE, { value: GENESIS_PRICE })).to.be.revertedWith("ADAPTER_NOT_SET");
+
+    const Adapter = await ethers.getContractFactory("StubAdapter", deployer);
+    const adapter = await Adapter.deploy(await auction.getAddress(), FIRST_ID);
+    await adapter.waitForDeployment();
+
+    await expect(auction.initializeMintAdapter(await adapter.getAddress())).to.be.revertedWith("AUCTION_ALREADY_OPEN");
   });
 
   it("enforces one-bid-per-block", async function () {
@@ -144,6 +170,7 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
       )
     ).wait();
 
+    await setNextBlockTimestamp(provider, await auction.openTime());
     await expect(
       batcher.bidTwice(await auction.getAddress(), GENESIS_PRICE, GENESIS_PRICE)
     ).to.be.revertedWith("ONE_BID_PER_BLOCK");

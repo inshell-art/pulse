@@ -38,6 +38,11 @@ describe("PulseAuction Hardening (Solidity)", function () {
     ).to.be.revertedWith(reason);
   }
 
+  async function futureOpenTime(delay = 60n) {
+    const latest = await ethers.provider.getBlock("latest");
+    return BigInt(latest.timestamp) + delay;
+  }
+
   it("constructor rejects non-positive genesis gap", async function () {
     const [, , , treasury] = await ethers.getSigners();
 
@@ -110,7 +115,7 @@ describe("PulseAuction Hardening (Solidity)", function () {
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
 
     const auction = await Auction.deploy(
-      0n,
+      await futureOpenTime(),
       K,
       GENESIS_PRICE,
       GENESIS_FLOOR,
@@ -160,7 +165,7 @@ describe("PulseAuction Hardening (Solidity)", function () {
 
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
     const auction = await Auction.deploy(
-      0n,
+      await futureOpenTime(),
       K,
       GENESIS_PRICE,
       GENESIS_FLOOR,
@@ -219,7 +224,7 @@ describe("PulseAuction Hardening (Solidity)", function () {
 
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
     const auction = await Auction.deploy(
-      0n,
+      await futureOpenTime(),
       K,
       GENESIS_PRICE,
       GENESIS_FLOOR,

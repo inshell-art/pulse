@@ -6,6 +6,18 @@ import {
   PTS
 } from "./constants.js";
 
+const MIN_ADAPTER_INIT_LEAD_SEC = 60n;
+
+async function resolveOpenTime(ethers, startDelaySec) {
+  const latest = await ethers.provider.getBlock("latest");
+  const latestTs = BigInt(latest.timestamp);
+  const requestedDelay = BigInt(startDelaySec);
+  const setupDelay = requestedDelay > MIN_ADAPTER_INIT_LEAD_SEC
+    ? requestedDelay
+    : MIN_ADAPTER_INIT_LEAD_SEC;
+  return latestTs + setupDelay;
+}
+
 export async function deployERC20Env(ethers, { startDelaySec = 0n } = {}) {
   const [deployer, alice, bob, treasury] = await ethers.getSigners();
 
@@ -18,7 +30,7 @@ export async function deployERC20Env(ethers, { startDelaySec = 0n } = {}) {
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await Auction.deploy(
-    startDelaySec,
+    await resolveOpenTime(ethers, startDelaySec),
     K,
     GENESIS_PRICE,
     GENESIS_FLOOR,
@@ -45,7 +57,7 @@ export async function deployETHEnv(ethers, { startDelaySec = 0n } = {}) {
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await Auction.deploy(
-    startDelaySec,
+    await resolveOpenTime(ethers, startDelaySec),
     K,
     GENESIS_PRICE,
     GENESIS_FLOOR,
@@ -77,7 +89,7 @@ export async function deployEvilEnv(ethers, { startDelaySec = 0n } = {}) {
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await Auction.deploy(
-    startDelaySec,
+    await resolveOpenTime(ethers, startDelaySec),
     K,
     GENESIS_PRICE,
     GENESIS_FLOOR,

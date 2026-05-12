@@ -165,6 +165,7 @@ contract PulseAuction is IPulseAuction {
     /// @notice One-time initializer for mint adapter when constructor used zero address.
     function initializeMintAdapter(address adapter) external override {
         require(msg.sender == deployer, "ONLY_DEPLOYER");
+        require(uint64(block.timestamp) < openTime, "AUCTION_ALREADY_OPEN");
         require(mintAdapter == address(0), "ADAPTER_ALREADY_SET");
         require(adapter != address(0), "INVALID_ADAPTER");
         require(adapter.code.length > 0, "INVALID_ADAPTER");
