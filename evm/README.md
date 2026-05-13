@@ -114,3 +114,41 @@ Manual launch checks:
 - Confirm the adapter is nonzero before open and cannot be changed after it is set.
 - Confirm ETH or ERC20 settlement mode matches the release plan.
 - Confirm indexers/frontends read price from the contract, not from copied constructor constants.
+
+## Publish-Ready Invariants
+
+Constructor params:
+
+- `openTime`: canonical launch timestamp. Bids before this timestamp revert; pre-open price reads are pinned to the opening ask.
+- `k`: constant-product curve constant.
+- `genesisPrice`: opening ask.
+- `genesisFloor`: initial floor.
+- `initialPts`: price-time scale used to pump the next curve after each sale.
+- `paymentToken`: zero address for ETH settlement, ERC-20 contract for token settlement.
+- `treasury`: payment recipient. In native ETH mode it receives exactly the ask.
+- `mintAdapter`: downstream delivery adapter. It may be zero only if initialized by the deployer before `openTime`.
+
+Role and freeze model:
+
+- Pulse has no admin role after construction.
+- `deployer` can call `initializeMintAdapter` exactly once, only before `openTime`, and only when constructor `mintAdapter` was zero.
+- A nonzero constructor `mintAdapter` is effectively frozen.
+
+Irreversible actions:
+
+- Each successful `bid(maxPrice)` settles the current epoch, transfers the ask, calls the adapter, advances `epochIndex`, and starts the next curve.
+- The first public bid is a normal epoch-0 sale, not a genesis sale.
+- One bid per block is enforced by `lastBlock`.
+
+Metadata/event/indexer expectations:
+
+- Indexers reconstruct the auction from `Sale` events plus `getConfig()` and `getState()`.
+- Stable `Sale` event fields: `buyer`, `epochIndex`, `price`, `timestamp`, `nextAnchorA`, `nextFloorB`.
+- `LaunchConfigured(openTime,deployedAt)` anchors launch timing.
+
+Deploy-time assumptions:
+
+- Downstream projects own NFT-specific adapter behavior.
+- For PATH, the adapter must be wired/frozen downstream before public open.
+- For ETH mode, caller sends `msg.value >= ask`; overpayment is refunded and treasury receives exactly `ask`.
+- For ERC-20 mode, caller sends `msg.value == 0`; Pulse transfers exactly `ask`.
