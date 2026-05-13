@@ -96,6 +96,22 @@ describe("PulseAuction Safety + Settlement (Solidity)", function () {
     expect(await ethers.provider.getBalance(await auction.getAddress())).to.equal(0n);
   });
 
+  it("treats maxPrice as slippage ceiling, not native ETH payment amount", async function () {
+    const { auction, alice, treasury } = await deployETHEnv(ethers, { startDelaySec: 50n });
+    const openTime = await auction.openTime();
+
+    await setNextBlockTimestamp(provider, openTime);
+    const ask = await auction.getCurrentPrice();
+    const treasuryBefore = await ethers.provider.getBalance(treasury.address);
+
+    await (await auction.connect(alice).bid(ask + 10_000n, { value: ask })).wait();
+
+    const treasuryAfter = await ethers.provider.getBalance(treasury.address);
+    expect(treasuryAfter - treasuryBefore).to.equal(ask);
+    expect(await auction.epochIndex()).to.equal(1n);
+    expect(await ethers.provider.getBalance(await auction.getAddress())).to.equal(0n);
+  });
+
   it("allows one-time deployer adapter initialization before open", async function () {
     const [deployer, alice, , treasury] = await ethers.getSigners();
 

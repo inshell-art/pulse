@@ -97,3 +97,20 @@ Notes:
 - `maxPrice` is a slippage cap (`ask <= maxPrice`).
 - `value` is attached ETH (`msg.value >= ask`).
 - In ETH mode, overpayment is refunded and treasury receives exactly `ask`.
+
+## Release Checks
+
+Before a public deployment, run:
+
+```bash
+npm test
+npm run estimate:deploy:cost
+```
+
+Manual launch checks:
+
+- Confirm `openTime`, `genesisPrice`, `genesisFloor`, `k`, and `pts` from `getConfig()`.
+- Confirm `curveActive()` is false before `openTime` and true at or after `openTime`.
+- Confirm the adapter is nonzero before open and cannot be changed after it is set.
+- Confirm ETH or ERC20 settlement mode matches the release plan.
+- Confirm indexers/frontends read price from the contract, not from copied constructor constants.

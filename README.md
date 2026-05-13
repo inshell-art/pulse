@@ -102,6 +102,16 @@ Notes:
 - `value` is the ETH attached to the tx (`msg.value >= ask`).
 - In ETH mode, overpayment is refunded and treasury receives exactly `ask`.
 
+## Publish-Ready Invariants
+
+- `openTime` is the only launch clock. Before it, bids revert and `getCurrentPrice()` is pinned to the open-time ask.
+- The first public bid is a normal epoch-0 sale, not a separate genesis mint path.
+- `maxPrice` caps acceptable execution price; it is not the amount charged.
+- In ETH mode, `msg.value` funds the bid. The treasury receives exactly the executed ask and any surplus is refunded.
+- In ERC20 mode, ETH is rejected and the contract transfers exactly the executed ask.
+- The adapter address is one-shot and must be finalized before open.
+- `Sale` events plus `getConfig()` / `getState()` must be enough for frontends and indexers to reconstruct the serial auction.
+
 ## Concept
 
 PulseAuction is NFT-agnostic: the auction core does not assume a specific minting system.
