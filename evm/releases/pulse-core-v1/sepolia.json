@@ -17,8 +17,8 @@
     "effectiveGasPrice": "1076002842"
   },
   "finality": {
-    "checkedAtUTC": "2026-09-24T06:57:04.220Z",
-    "finalizedBlock": 11770281,
+    "checkedAtUTC": "2026-09-24T07:06:45.193Z",
+    "finalizedBlock": 11770345,
     "coreFinalized": true,
     "referenceRehearsalFinalized": true
   },
@@ -29,7 +29,7 @@
   },
   "abiSha256": "bfeef88bd7a25cfc85e54b25ea454ce28cfb92ca4473278c8eac5ab5eb049f6d",
   "vectorsSha256": "6301bbfcf326bbe10ecf68d2f8406d8c6fb9a4262a1c057a2bdd6eff739d042d",
-  "sourceRevision": null,
+  "sourceRevision": "35b2eeeb73d6b9849940394cfe60530d1999c999",
   "explorerVerification": {
     "status": "not-published"
   },

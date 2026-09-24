@@ -1,6 +1,6 @@
 # Pulse Core V1 release procedure and status
 
-**Status (2026-09-23): the frozen core and both reference consumers passed Anvil first, then were deployed and rehearsed on Sepolia. Ethereum mainnet deployment is deferred and is not a gate for this release scope.** The frozen build, ABI, interface, vectors and integration guide are available in this repository. An address from a local network is temporary and must never be copied into a downstream production binding.
+**Status (2026-09-24): the frozen core and both reference consumers passed Anvil first, then were deployed and rehearsed on Sepolia. Ethereum mainnet deployment is deferred and is not a gate for this release scope.** The frozen build, ABI, interface, vectors and integration guide are available in this repository. An address from a local network is temporary and must never be copied into a downstream production binding.
 
 | Target | Chain ID | Purpose | Status |
 | --- | ---: | --- | --- |
@@ -16,7 +16,7 @@
 - Frozen runtime code: 2,717 bytes, hash `0xfb48657163202d3cdb28060f1eb511fd1f5b93a6e0eb8657242b5632e2200a90`.
 - [Manifest](../../evm/releases/pulse-core-v1/manifest.json), [ABI](../../evm/releases/pulse-core-v1/IPulseCore.abi.json), [interface](../../evm/releases/pulse-core-v1/IPulseCore.sol), [vectors](../../evm/releases/pulse-core-v1/vectors.json), [standard compiler input](../../evm/releases/pulse-core-v1/standard-input.json), [integration guide](pulse-core-integration.md) and [numerical specification](pulse-core-api.md).
 
-The manifest pins reviewed **worktree contents by hash**, not a committed source revision or Git tag. Before a public release, commit/review the complete artifact set and record its commit or tag in the chain-specific release record. Keep the frozen build unchanged unless a new review deliberately replaces it. V1 core is immutable: a revised implementation needs a new address and reviewed release identity.
+The chain-neutral manifest pins reviewed source and build contents by hash. The [Sepolia record](../../evm/releases/pulse-core-v1/sepolia.json) additionally names the local Git commit containing that exact source and artifact set. No Git tag or remote publication is asserted. Keep the frozen build unchanged unless a new review deliberately replaces it. V1 core is immutable: a revised implementation needs a new address and reviewed release identity.
 
 ## Local gates and evidence
 
@@ -42,7 +42,7 @@ The [chain-specific release record](../../evm/releases/pulse-core-v1/sepolia.jso
 
 Two test-only consumers bound that same core. The scheduled ETH consumer made a sale at **901 wei**. The conditional ERC20 consumer registered and fulfilled **1,024 slots**; its final fulfillment established `openTime` and emitted no Pulse `Sale`. Its later purchase cleared at **914 token base units**. Both sales' asks and next states matched the independent model, and both treasuries received exactly the corresponding ask. The rehearsal comprised **33 transactions**, **98,200,154 gas**, and **0.109711458625612564 Sepolia ETH** in actual execution fees for reference infrastructure, registrations, fulfillments, activation and purchases. It is a testnet behavior proof, not an estimate of real PATH or signatures.gallery integration costs.
 
-Source publication to Etherscan is a separate, currently unapproved external step. The on-chain bytecode/transaction identity is verified; the core deployment and all reference rehearsal transactions are below Sepolia's finalized block as of the latest recorded check. Explorer source verification is marked `not-published` until explicitly authorized and completed. The public record's `sourceRevision` is also unset because the current reviewed source remains uncommitted in the worktree.
+Source publication to Etherscan is a separate, currently unapproved external step. The on-chain bytecode/transaction identity is verified; the core deployment and all reference rehearsal transactions are below Sepolia's finalized block as of the latest recorded check. Explorer source verification is marked `not-published` until explicitly authorized and completed. The record's `sourceRevision` identifies local commit `35b2eeeb73d6b9849940394cfe60530d1999c999`, which contains the frozen source and release artifacts; it does not assert that commit has been pushed to a remote.
 
 ## Target-chain sequence
 
@@ -57,4 +57,4 @@ The RPC URL may contain an access token; supply it through the environment and k
 
 The current Pulse release scope ends at the Anvil and Sepolia core/reference-consumer checks. The PATH and signatures.gallery contracts are separate downstream integrations; their actual mint, allowlist, payment, authorization and core-binding paths still need their own Anvil tests in those repositories. Their 1,024-slot condition must be checked against the real signatures.gallery contract after integration, not inferred from this fixture.
 
-Ethereum mainnet deployment is deferred. A read-only mainnet RPC quote estimated **647,046 gas** for creating the frozen core on 2026-09-23, but this is only a volatile historical snapshot and no production deployer was selected. Explorer source publication and a source commit/tag are separate release hygiene steps; neither has been completed or silently treated as mainnet authorization.
+Ethereum mainnet deployment is deferred. A read-only mainnet RPC quote estimated **647,046 gas** for creating the frozen core on 2026-09-23, but this is only a volatile historical snapshot and no production deployer was selected. The source commit is recorded locally; explorer source publication remains separate and unapproved. Neither step grants mainnet deployment authorization.

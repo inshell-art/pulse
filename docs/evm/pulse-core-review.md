@@ -53,7 +53,7 @@ The [frozen manifest](../../evm/releases/pulse-core-v1/manifest.json) selects so
 0xfb48657163202d3cdb28060f1eb511fd1f5b93a6e0eb8657242b5632e2200a90
 ```
 
-The bundle also includes the three-source standard input, interface/ABI, golden vectors and both bytecodes. It pins reviewed worktree content by hashes; no Git tag, committed revision or public deployment is asserted. Chain/address/transaction fields belong to Task 6.
+The bundle also includes the three-source standard input, interface/ABI, golden vectors and both bytecodes. At the Task 5B freeze, it pinned reviewed worktree content by hashes without asserting a Git revision or public deployment. Task 6 later recorded the Sepolia chain/address/transaction and the source revision separately.
 
 From `evm/`, reproduce the release checks with:
 
