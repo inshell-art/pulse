@@ -11,6 +11,8 @@ The active implementation is Solidity for Ethereum:
 - Adapter interface: `evm/src/interfaces/IPulseAdapter.sol`
 - Tests: `evm/test/`
 
+The shared stateless core refactor is tracked in the [Approach B plan](docs/evm/shared-pulse-core-plan.md). The [V1 specification](docs/evm/pulse-core-api.md), [core implementation](evm/src/core/PulseCoreV1.sol), [reference consumer integration](docs/evm/pulse-core-integration.md), [gas benchmark](docs/evm/pulse-core-benchmark.md), [Task 5B review/build freeze](docs/evm/pulse-core-review.md) and [Task 6 release package](docs/evm/pulse-core-release.md) are complete through the Anvil rehearsal and [Sepolia deployment/reference rehearsal](evm/releases/pulse-core-v1/sepolia.json). Ethereum mainnet deployment is deferred. PATH and signatures.gallery own integration and application-level Anvil tests in their respective repositories.
+
 Quick start:
 
 ```bash
@@ -155,7 +157,7 @@ So between sales, the ask decays monotonically toward `b` as time increases.
 Epoch 0 is initialized at deployment:
 - `curveStartTime = openTime`
 - `floorPrice = genesisFloor`
-- `anchorTime` chosen so `ask(openTime) = genesisPrice`
+- `anchorTime = openTime - floor(k / (genesisPrice - genesisFloor))`; `genesisPrice` is the target used to derive the anchor, and integer rounding can make the actual opening ask higher.
 
 Before `openTime`, bids are blocked and `getCurrentPrice()` is pinned to the `openTime` ask.
 
@@ -171,14 +173,13 @@ At sale time:
 
 (`pts` is price-time scale: price units per second)
 
-Define the next epoch start price:
+Define the next epoch's target start price:
 - `initialAsk = lastPrice + premium`
 - `nextFloor = lastPrice`
 
 This pure-ratchet rule applies to every completed sale, including the first one after open.
 
-Now choose a new `anchorTime` so the next epoch curve satisfies:
-- `ask(t_last) = initialAsk`
+Use that target to derive the new `anchorTime`. Ignoring integer rounding, the intended relation is `ask(t_last) = initialAsk`; the implemented integer curve need not meet it exactly.
 
 Using `ask(t) = b + k / (t - a)` with `b = nextFloor`, solve for `a`:
 - `initialAsk = b + k / (t_last - a)`
@@ -190,18 +191,18 @@ Because `initialAsk - b = premium`:
 - `anchorTime = t_last - floor( k / premium )`
 
 This creates the characteristic shape:
-- Immediately after a sale, the ask jumps up by `premium = effectiveDeltaT * pts`.
+- Immediately after a sale, the ask increases above the new floor. The target increment is `premium = effectiveDeltaT * pts`; rounding and the anchor clamp determine the actual increment.
 - Then the ask decays hyperbolically back toward the new floor.
 
 ### Integer division and edge case
 
-All divisions are integer divisions (`floor`), so small rounding effects are expected.
+All divisions are integer divisions (`floor`). Rounding is not necessarily small: with `k=10`, floor `100`, and target `106`, the anchor offset is `floor(10/6)=1` and the actual opening ask is `110`.
 
 Important edge cases:
 - If `premium > k`, then `floor(k / premium) = 0`, so `anchorTime == curveStartTime`.
 - At exactly `t == anchorTime` the curve would be undefined, so the implementation clamps to `floor + k` when `t <= anchorTime`.
 - One second later it follows `floor + floor(k / 1)`, then `floor + floor(k / 2)`, and so on.
-- `effectiveDeltaT = max(1, deltaT)` applies to all sales, so same-timestamp sales cannot brick the auction.
+- `effectiveDeltaT = max(1, deltaT)` applies to all sales, keeping the premium nonzero for same-timestamp sales. Finite price and epoch bounds still apply.
 
 ### Why store (`anchorTime`, `floorPrice`) instead of the whole curve?
 

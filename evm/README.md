@@ -24,6 +24,8 @@ cd evm
 npm install
 npm test
 npm run estimate:deploy:cost
+BENCH_ALLOCATION_SLOTS=1024 npm run benchmark:core
+BENCH_ALLOCATION_SLOTS=1024 npm run benchmark:core:optimized
 ```
 
 Override assumptions (optional):
@@ -31,6 +33,22 @@ Override assumptions (optional):
 ```bash
 GAS_PRICE_GWEI=20 ETH_USD=3000 npm run estimate:deploy:cost
 ```
+
+The A/B gas benchmark compares two embedded-math reference consumers against one
+public core plus two shared-core consumers. See the [Task 5A report](../docs/evm/pulse-core-benchmark.md)
+for measured deployment and purchase gas, compiler settings and limits. The
+optimized command uses separate artifacts and does not change the normal build.
+
+The [Task 5B review](../docs/evm/pulse-core-review.md) freezes the optimized V1 core
+in `releases/pulse-core-v1/`. Verify it with `npm run test:core:release` and
+`npm run check:core:release`. The checker rejects changed source, settings or
+artifacts. `npm run rehearse:core:local` exercises the frozen build with two
+reference consumers; `npm run prepare:core:deployment` creates an unsigned
+chain-specific transaction, and `npm run verify:core:deployment` checks an
+existing deployment. See the [release procedure](../docs/evm/pulse-core-release.md).
+The [Sepolia core and two-consumer rehearsal](releases/pulse-core-v1/sepolia.json)
+are verified on-chain. The full local reference rehearsal also passed on Anvil.
+Ethereum mainnet deployment is deferred.
 
 ## Local Devnet (ETH Payment)
 
@@ -121,7 +139,7 @@ Constructor params:
 
 - `openTime`: canonical launch timestamp. Bids before this timestamp revert; pre-open price reads are pinned to the opening ask.
 - `k`: constant-product curve constant.
-- `genesisPrice`: opening ask.
+- `genesisPrice`: target used to derive the initial anchor; integer rounding can make the actual opening ask higher.
 - `genesisFloor`: initial floor.
 - `initialPts`: price-time scale used to pump the next curve after each sale.
 - `paymentToken`: zero address for ETH settlement, ERC-20 contract for token settlement.

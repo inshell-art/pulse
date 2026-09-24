@@ -1,0 +1,135 @@
+{
+  "format": "pulse-core-a-b-benchmark/v2",
+  "network": "default",
+  "chainId": "31337",
+  "execution": {
+    "hardfork": "shanghai",
+    "initialDate": "2026-09-23T00:00:00.000Z"
+  },
+  "build": {
+    "compiler": "0.8.24+commit.e11b9ed9",
+    "evmVersion": "shanghai",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": false,
+    "sourceHashes": {
+      "src/core/PulseCoreV1.sol": "98de1fc6dcf18a4acb846d0d636b8e145a67ff917b1916f4caa3134f515bf6b8",
+      "src/core/PulseMath.sol": "ba6fb3fe2a223c55884dbd41ad1a2849432b9e25e39b3138c519f6692f8c8da2",
+      "src/interfaces/IPulseCore.sol": "17bb422f14ab250809ff7b6a0722f8bc134948683e398a4725eea0abe89c76f3",
+      "src/mocks/PulseConsumerHarness.sol": "cbe27e1980a6851062840113f68b8ce211267993304be100f4ac15a86c26118f",
+      "src/mocks/PulseEmbeddedConsumerBenchmark.sol": "e8321ceca38edb7799c1c533bb39031752fab28c4f49b8ba975b3ead8bd7c66b",
+      "src/mocks/PulseEmbeddedMathBenchmark.sol": "41c0c9b328022c22e5e6d38a8788c55337eff12415eea5c0b0ece12e3b4f17fc",
+      "src/mocks/PulseCostQuoteProbe.sol": "cd8ffddb17d141cacf3780e8866aa6deb8ec91de4ccbb53193f3e177ef049e70",
+      "src/mocks/PulseConsumerAdversaries.sol": "c728318ab29fb724bd3ec79b60b63e9a919adf3bba7208f22411bbff1a3569cd"
+    }
+  },
+  "core": {
+    "deployment": "640793",
+    "runtimeBytes": 2717,
+    "runtimeCodeHash": "0xfb48657163202d3cdb28060f1eb511fd1f5b93a6e0eb8657242b5632e2200a90"
+  },
+  "controls": "Embedded control is generated from PulseConsumerHarness and PulseMath; calldata becomes memory only where an internal call requires it.",
+  "excludedFromTotals": "Test tokens, quote probe, token funding and ERC20 approvals. Slot registration and fulfillment are reported separately.",
+  "scheduledEth": {
+    "deployment": {
+      "embedded": "2052899",
+      "shared": "1832277"
+    },
+    "runtimeBytes": {
+      "embedded": 8189,
+      "shared": 7174
+    },
+    "preopenQuoteTx": {
+      "embedded": {
+        "transactionGas": "51262",
+        "ask": "1000",
+        "firstCallGas": "21815",
+        "secondCallGas": "5312"
+      },
+      "shared": {
+        "transactionGas": "60434",
+        "ask": "1000",
+        "firstCallGas": "27645",
+        "secondCallGas": "8642"
+      }
+    },
+    "firstPurchase": {
+      "ask": "1000",
+      "embedded": "135775",
+      "shared": "142921"
+    },
+    "nextPurchase": {
+      "ask": "1000",
+      "embedded": "115684",
+      "shared": "122488"
+    },
+    "postSaleQuoteTx": {
+      "embedded": {
+        "transactionGas": "50804",
+        "ask": "1028",
+        "firstCallGas": "21586",
+        "secondCallGas": "5083"
+      },
+      "shared": {
+        "transactionGas": "58968",
+        "ask": "1028",
+        "firstCallGas": "26912",
+        "secondCallGas": "7909"
+      }
+    }
+  },
+  "conditionalErc20": {
+    "allocationSlots": "1024",
+    "deployment": {
+      "embedded": "1987624",
+      "shared": "1767002"
+    },
+    "runtimeBytes": {
+      "embedded": 8189,
+      "shared": 7174
+    },
+    "registration": {
+      "embedded": "23886316",
+      "shared": "23886044"
+    },
+    "preFinalFulfillment": {
+      "embedded": "116163696",
+      "shared": "116186202"
+    },
+    "finalSlotActivation": {
+      "embedded": "170027",
+      "shared": "174312"
+    },
+    "quoteTx": {
+      "embedded": {
+        "transactionGas": "51240",
+        "ask": "985",
+        "firstCallGas": "21798",
+        "secondCallGas": "5295"
+      },
+      "shared": {
+        "transactionGas": "60076",
+        "ask": "985",
+        "firstCallGas": "27466",
+        "secondCallGas": "8463"
+      }
+    },
+    "firstPurchase": {
+      "ask": "975",
+      "embedded": "135960",
+      "shared": "143106"
+    },
+    "nextPurchase": {
+      "ask": "976",
+      "embedded": "135759",
+      "shared": "142563"
+    }
+  },
+  "twoApplicationDeployment": {
+    "embedded": "4040523",
+    "shared": "4240072",
+    "sharedMinusEmbedded": "199549"
+  }
+}

@@ -7,6 +7,10 @@ deployments/
 output/
 evm/artifacts/
 evm/cache/
+evm/artifacts-benchmark-optimized/
+evm/cache-benchmark-optimized/
+evm/artifacts-core-release/
+evm/cache-core-release/
 evm/typechain/
 evm/types/
 evm/deployments/

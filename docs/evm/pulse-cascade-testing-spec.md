@@ -28,7 +28,7 @@ State tuple per epoch:
 Static config:
 - `k`
 - `pts`
-- `genesisPrice` (start ask at `openTime`)
+- `genesisPrice` (anchor target; the rounded ask at `openTime` can be higher)
 - `genesisFloor` (initial floor)
 - `openTime`
 

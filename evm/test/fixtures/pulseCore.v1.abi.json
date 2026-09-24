@@ -1,0 +1,434 @@
+{
+  "semantics": "pulse-core/1.0.0",
+  "versionId": "0x2e01a46bd995ce90b010c47771e291edb941414ea8ef01f795dcca13fa4ced88",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "EpochOverflow",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GenesisGapExceedsK",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidCurveK",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidGenesisPrices",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidPts",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidState",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PriceOverflow",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "startTime",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minimumExclusive",
+          "type": "uint256"
+        }
+      ],
+      "name": "StartTimeTooEarly",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TargetPriceOverflow",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TimeScaleOutOfRange",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "timestamp",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "curveStartTime",
+          "type": "uint64"
+        }
+      ],
+      "name": "TimestampBeforeEpoch",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "k",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "genesisPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "genesisFloor",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "pts",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct IPulseCore.Config",
+          "name": "config",
+          "type": "tuple"
+        },
+        {
+          "components": [
+            {
+              "internalType": "uint64",
+              "name": "epochIndex",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "openTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "curveStartTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "anchorTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint256",
+              "name": "floorPrice",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct IPulseCore.State",
+          "name": "state",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint64",
+          "name": "timestamp",
+          "type": "uint64"
+        }
+      ],
+      "name": "advance",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "ask",
+          "type": "uint256"
+        },
+        {
+          "components": [
+            {
+              "internalType": "uint64",
+              "name": "epochIndex",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "openTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "curveStartTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "anchorTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint256",
+              "name": "floorPrice",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct IPulseCore.State",
+          "name": "nextState",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "k",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "genesisPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "genesisFloor",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "pts",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct IPulseCore.Config",
+          "name": "config",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint64",
+          "name": "startTime",
+          "type": "uint64"
+        }
+      ],
+      "name": "initialize",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint64",
+              "name": "epochIndex",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "openTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "curveStartTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "anchorTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint256",
+              "name": "floorPrice",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct IPulseCore.State",
+          "name": "initialState",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "k",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "genesisPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "genesisFloor",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "pts",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct IPulseCore.Config",
+          "name": "config",
+          "type": "tuple"
+        },
+        {
+          "components": [
+            {
+              "internalType": "uint64",
+              "name": "epochIndex",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "openTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "curveStartTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "anchorTime",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint256",
+              "name": "floorPrice",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct IPulseCore.State",
+          "name": "state",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint64",
+          "name": "timestamp",
+          "type": "uint64"
+        }
+      ],
+      "name": "quote",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "ask",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "version",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "versionId",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "selectors": [
+    {
+      "type": "function",
+      "signature": "advance((uint256,uint256,uint256,uint256),(uint64,uint64,uint64,uint64,uint256),uint64)",
+      "selector": "0x90619ef3"
+    },
+    {
+      "type": "error",
+      "signature": "EpochOverflow()",
+      "selector": "0x73cde751"
+    },
+    {
+      "type": "error",
+      "signature": "GenesisGapExceedsK()",
+      "selector": "0xdb208c33"
+    },
+    {
+      "type": "function",
+      "signature": "initialize((uint256,uint256,uint256,uint256),uint64)",
+      "selector": "0xaa4b1857"
+    },
+    {
+      "type": "error",
+      "signature": "InvalidCurveK()",
+      "selector": "0x329402ef"
+    },
+    {
+      "type": "error",
+      "signature": "InvalidGenesisPrices()",
+      "selector": "0x6cbe8579"
+    },
+    {
+      "type": "error",
+      "signature": "InvalidPts()",
+      "selector": "0x0ede15dc"
+    },
+    {
+      "type": "error",
+      "signature": "InvalidState()",
+      "selector": "0xbaf3f0f7"
+    },
+    {
+      "type": "error",
+      "signature": "PriceOverflow()",
+      "selector": "0xf5c787f1"
+    },
+    {
+      "type": "function",
+      "signature": "quote((uint256,uint256,uint256,uint256),(uint64,uint64,uint64,uint64,uint256),uint64)",
+      "selector": "0xeb540486"
+    },
+    {
+      "type": "error",
+      "signature": "StartTimeTooEarly(uint64,uint256)",
+      "selector": "0x29668c7a"
+    },
+    {
+      "type": "error",
+      "signature": "TargetPriceOverflow()",
+      "selector": "0x18de44bd"
+    },
+    {
+      "type": "error",
+      "signature": "TimeScaleOutOfRange()",
+      "selector": "0xc11711e1"
+    },
+    {
+      "type": "error",
+      "signature": "TimestampBeforeEpoch(uint64,uint64)",
+      "selector": "0x10f669bb"
+    },
+    {
+      "type": "function",
+      "signature": "version()",
+      "selector": "0x54fd4d50"
+    }
+  ]
+}
