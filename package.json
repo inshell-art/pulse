@@ -10,6 +10,7 @@
     "test": "npm --prefix evm test",
     "test:evm": "npm --prefix evm test",
     "compile:evm": "npm --prefix evm run compile",
+    "playground": "npm --prefix evm run playground",
     "prepare": "husky"
   },
   "keywords": [],

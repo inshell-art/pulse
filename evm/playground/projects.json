@@ -1,0 +1,31 @@
+{
+  "updatedAt": "2026-09-25",
+  "projects": [
+    {
+      "id": "path",
+      "name": "PATH",
+      "summary": "An on-chain artwork and participation experiment. Its current public release rehearses a standalone Pulse auction locally; shared Core integration remains downstream work.",
+      "url": "https://github.com/inshell-art/path",
+      "stage": "local-rehearsal",
+      "stageLabel": "Local rehearsal",
+      "integration": "legacy-standalone",
+      "integrationLabel": "Standalone Pulse auction",
+      "evidenceUrl": "https://github.com/inshell-art/path/blob/main/releases/v0.5.0/DOWNSTREAM_HANDOFF.md",
+      "auctionUrl": null,
+      "checkedAt": "2026-09-25"
+    },
+    {
+      "id": "signatures-gallery",
+      "name": "signatures.gallery",
+      "summary": "A generative signature project with a local open-mint flow. Pulse use is being explored; its current public implementation has no Pulse auction.",
+      "url": "https://github.com/inshell-art/Agent-Art-signatures.gallery",
+      "stage": "exploring",
+      "stageLabel": "Exploring",
+      "integration": "not-integrated",
+      "integrationLabel": "No Pulse integration yet",
+      "evidenceUrl": "https://github.com/inshell-art/Agent-Art-signatures.gallery/blob/main/README.md",
+      "auctionUrl": null,
+      "checkedAt": "2026-09-25"
+    }
+  ]
+}

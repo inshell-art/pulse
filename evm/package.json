@@ -17,6 +17,7 @@
     "prepare:core:deployment": "node scripts/prepare-core-deployment.js",
     "verify:core:deployment": "node scripts/verify-core-deployment.js",
     "smoke:core:sepolia": "node scripts/smoke-core-sepolia.js",
+    "playground": "node playground/server.js",
     "deploy:core:sepolia": "node scripts/deploy-core-sepolia.js",
     "rehearse:core:sepolia": "hardhat run --config hardhat.core-release.config.js scripts/rehearse-core-sepolia.js",
     "verify:core:sepolia:explorer": "node scripts/verify-core-sepolia-explorer.js",

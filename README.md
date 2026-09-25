@@ -1,17 +1,18 @@
 # pulse
 
-Pulse is an on-chain implementation of DAA (Decentralized Automatic Auction).
+Pulse is a shared on-chain auction calculator with a first-party site for exploring the mechanism and discovering independent projects.
 
-## Active Implementation
+## Repository scope
 
-The active implementation is Solidity for Ethereum:
+This repository maintains:
 
-- `evm/`
-- Main contract: `evm/src/PulseAuction.sol`
-- Adapter interface: `evm/src/interfaces/IPulseAdapter.sol`
-- Tests: `evm/test/`
+- [Pulse Core V1](evm/src/core/PulseCoreV1.sol), the stateless calculation contract that exposes `initialize`, `quote`, and `advance`.
+- The [Core V1 release](https://github.com/inshell-art/pulse/releases/tag/pulse-core-v1.0.0), including the ABI, interface, manifest, Sepolia record, and [downstream integration documentation](docs/evm/pulse-core-integration.md).
+- The [Pulse site](evm/playground/README.md), with a read-only Sepolia lab and an [optional, manually curated project directory](docs/site/project-listing.md). Hypothetical scenarios are saved in the user's browser.
 
-The shared stateless core refactor is tracked in the [Approach B plan](docs/evm/shared-pulse-core-plan.md). The [V1 specification](docs/evm/pulse-core-api.md), [core implementation](evm/src/core/PulseCoreV1.sol), [reference consumer integration](docs/evm/pulse-core-integration.md), [gas benchmark](docs/evm/pulse-core-benchmark.md), [Task 5B review/build freeze](docs/evm/pulse-core-review.md) and [Task 6 release package](docs/evm/pulse-core-release.md) are complete through the Anvil rehearsal and [Sepolia deployment/reference rehearsal](evm/releases/pulse-core-v1/sepolia.json). Ethereum mainnet deployment is deferred. PATH and signatures.gallery own integration and application-level Anvil tests in their respective repositories.
+PATH and signatures.gallery own their auction configuration, state, activation, payments, minting, and application-level tests in their own repositories. The older [`PulseAuction.sol`](evm/src/PulseAuction.sol) and adapter remain here as a standalone-auction reference and test baseline, not the shared Core integration surface.
+
+The design history is tracked in the [Approach B plan](docs/evm/shared-pulse-core-plan.md). The [V1 specification](docs/evm/pulse-core-api.md), [core implementation](evm/src/core/PulseCoreV1.sol), [reference consumer integration](docs/evm/pulse-core-integration.md), [gas benchmark](docs/evm/pulse-core-benchmark.md), [Task 5B review/build freeze](docs/evm/pulse-core-review.md) and [Task 6 release package](docs/evm/pulse-core-release.md) are complete through the Anvil rehearsal and [Sepolia deployment/reference rehearsal](evm/releases/pulse-core-v1/sepolia.json). Ethereum mainnet deployment is deferred.
 
 Quick start:
 
@@ -21,7 +22,16 @@ npm install
 npm test
 ```
 
-Local ETH rehearsal:
+Pulse site (local preview, Sepolia calculations):
+
+```bash
+cd evm && npm install
+cd .. && npm run playground
+```
+
+Open `http://127.0.0.1:4173`. The local server reads `PULSE_RPC_URL` or `SEPOLIA_RPC_URL`, falling back to the existing `~/.opsec/path/env/sepolia.env` file. See [site notes](evm/playground/README.md). The lab needs no wallet or transaction. The site is currently a local preview. The chosen public domain is `pulse.inshell.art`; hosting and DNS setup remain pending.
+
+Legacy PulseAuction local ETH rehearsal:
 
 ```bash
 cd evm
@@ -33,7 +43,7 @@ npm run smoke:local:eth
 npm run scenario:local:eth
 ```
 
-## Usage (How To Use Pulse Locally)
+## Legacy PulseAuction local usage
 
 Pulse runs as serial auctions: each successful bid finalizes the current epoch and immediately starts the next epoch.
 
@@ -104,7 +114,7 @@ Notes:
 - `value` is the ETH attached to the tx (`msg.value >= ask`).
 - In ETH mode, overpayment is refunded and treasury receives exactly `ask`.
 
-## Publish-Ready Invariants
+## Legacy PulseAuction invariants
 
 - `openTime` is the only launch clock. Before it, bids revert and `getCurrentPrice()` is pinned to the open-time ask.
 - The first public bid is a normal epoch-0 sale, not a separate genesis mint path.

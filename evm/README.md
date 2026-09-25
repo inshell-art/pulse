@@ -1,10 +1,11 @@
 # Pulse (EVM / Solidity)
 
-This folder contains the active Solidity implementation of Pulse on Ethereum.
+This folder contains the released shared Pulse Core, its EVM tests and release artifacts, and the first-party Pulse site.
 
-- `evm/src/PulseAuction.sol`
-- `evm/src/interfaces/IPulseAdapter.sol`
-- `evm/src/interfaces/IPulseAuction.sol`
+- `src/core/PulseCoreV1.sol` and `src/interfaces/IPulseCore.sol`: the stateless V1 calculation surface.
+- `releases/pulse-core-v1/`: frozen ABI, interface, manifest, vectors, and Sepolia deployment record for downstream consumers.
+- `playground/`: Pulse site, including a local lab that calls the Sepolia Core without a wallet or transaction and an optional project directory.
+- `src/PulseAuction.sol` and `src/interfaces/IPulseAdapter.sol`: older standalone-auction/reference implementation.
 
 Mocks (for local testing/integration):
 
@@ -50,7 +51,7 @@ The [Sepolia core and two-consumer rehearsal](releases/pulse-core-v1/sepolia.jso
 are verified on-chain. The full local reference rehearsal also passed on Anvil.
 Ethereum mainnet deployment is deferred.
 
-## Local Devnet (ETH Payment)
+## Legacy PulseAuction local devnet (ETH payment)
 
 `PulseAuction` supports native ETH settlement when `paymentToken == address(0)`.
 

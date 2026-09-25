@@ -1,0 +1,71 @@
+name: Suggest a Pulse project
+description: Suggest a project for the optional, manually curated Pulse site directory.
+title: "Project listing: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. A suggestion does not register a contract, make an auction live, or certify a project. Share only public information. A project can use Pulse without appearing in this directory.
+  - type: input
+    id: project-name
+    attributes:
+      label: Project name
+      placeholder: A short public name
+    validations:
+      required: true
+  - type: input
+    id: project-url
+    attributes:
+      label: Canonical project URL
+      description: A public project site or source repository that visitors can inspect.
+      placeholder: https://example.org/project
+    validations:
+      required: true
+  - type: textarea
+    id: project-description
+    attributes:
+      label: What is the project experimenting with?
+      description: Describe the work and how Pulse's serial auction fits it, in two or three sentences.
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: Current status
+      options:
+        - Exploring / design
+        - Local rehearsal
+        - Public testnet
+        - Live auction
+    validations:
+      required: true
+  - type: dropdown
+    id: integration
+    attributes:
+      label: Pulse integration
+      options:
+        - Planning only
+        - Importing Pulse calculation source
+        - Calling the shared Pulse Core contract
+        - Using the older standalone Pulse auction
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Public evidence
+      description: Link to public code, documentation, a deployment record, or an auction page. For a live listing, include the chain ID, application contract address, and the project's auction page. The shared Core address alone does not establish a live project.
+      placeholder: |
+        Source / docs:
+        Chain ID (if deployed):
+        Application contract address (if deployed):
+        Auction page (if live):
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Listing terms
+      options:
+        - label: I understand this is a public editorial directory and that inclusion is optional and does not verify auction state or project safety.
+          required: true
