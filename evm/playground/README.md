@@ -23,6 +23,14 @@ Open <http://127.0.0.1:4173>. Set `PULSE_PLAYGROUND_PORT` to change the local po
 
 On startup the server checks the Sepolia chain ID, Core runtime code hash, Core version, and a sample calculation against the [release record](../releases/pulse-core-v1/sepolia.json). If the configured endpoint is `ethereum-sepolia-rpc.publicnode.com`, it also verifies `sepolia.gateway.tenderly.co` as a fallback. An explicitly configured private RPC does not get a public fallback.
 
+## Publish on Cloudflare
+
+The Cloudflare Worker serves the same seven browser assets and a read-only Sepolia gateway. From `evm/playground/`, run `npx wrangler@4.94.0 deploy --dry-run` to build, then `npx wrangler@4.94.0 deploy` to publish. The configuration binds only `pulse.inshell.art` and disables the workers.dev and preview addresses. Use the existing Cloudflare account with Worker deployment and custom-domain/zone permissions, supplied through the standard `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` environment variables. Keep credentials outside this repository. No signer, database, KV namespace, or paid-plan change is needed.
+
+The Worker uses public Sepolia RPC endpoints with failover, verifies the chain, released runtime hash and version before calculations, and refreshes that verification every five minutes per isolate. Only `initialize`, `quote`, and `advance` calls to the pinned Core address are accepted. Inputs have byte-size and ABI-width bounds; upstream calls have timeouts. Rate and concurrency limits apply per isolate, not as an account-wide quota. Worker observability is disabled, and the application does not persist calculation requests. Cloudflare and RPC providers still handle network requests.
+
+Run `node --test evm/playground/worker.test.js` from the repository root for gateway boundary tests. After deployment, run `python3 evm/playground/smoke-site.py https://pulse.inshell.art` to verify HTTPS routes and actual Sepolia calculations.
+
 ## Publish on a Node host
 
 The site needs a Node server behind HTTPS because the lab forwards selected read-only calls to Sepolia. A static GitHub Pages upload alone will not run the current lab. Configure the host with a private `PULSE_RPC_URL`, a listening `PORT`, and `PULSE_SITE_HOST=0.0.0.0`; run `npm --prefix evm run playground`. Keep the RPC URL in the host's environment, outside the repository. For publication, configure DNS for `pulse.inshell.art` to point at the selected host and validate HTTPS and the production smoke checks. The server includes input bounds, request timeouts, and basic per-connection/global request limits; a public host should also enforce traffic limits at its edge. The site does not require a signer.

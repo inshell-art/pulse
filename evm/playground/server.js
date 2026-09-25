@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { errorNames, uint, config, state, wireState } from "./core-api.js";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -17,12 +18,6 @@ const files = new Map([
   ["/projects.json", ["projects.json", "application/json; charset=utf-8"]],
   ["/favicon.svg", ["favicon.svg", "image/svg+xml"]]
 ]);
-const fields = ["epochIndex", "openTime", "curveStartTime", "anchorTime", "floorPrice"];
-const errorNames = new Set([
-  "InvalidCurveK", "InvalidGenesisPrices", "GenesisGapExceedsK", "InvalidPts",
-  "TimeScaleOutOfRange", "StartTimeTooEarly", "InvalidState", "TimestampBeforeEpoch",
-  "PriceOverflow", "TargetPriceOverflow", "EpochOverflow"
-]);
 
 function rpcUrl() {
   const direct = process.env.PULSE_RPC_URL ?? process.env.SEPOLIA_RPC_URL;
@@ -36,38 +31,6 @@ function rpcUrl() {
   const value = entries.PULSE_RPC_URL ?? entries.SEPOLIA_RPC_URL;
   assert(value, "Set PULSE_RPC_URL or SEPOLIA_RPC_URL for the local playground");
   return value;
-}
-
-function uint(value, bits) {
-  if (typeof value !== "string" || !/^\d{1,78}$/.test(value)) throw new Error("Invalid unsigned integer input");
-  const parsed = BigInt(value);
-  if (parsed >= 1n << BigInt(bits)) throw new Error("Input exceeds its ABI width");
-  return parsed;
-}
-
-function config(value) {
-  if (!value || typeof value !== "object") throw new Error("Missing curve settings");
-  return {
-    k: uint(value.k, 256),
-    genesisPrice: uint(value.genesisPrice, 256),
-    genesisFloor: uint(value.genesisFloor, 256),
-    pts: uint(value.pts, 256)
-  };
-}
-
-function state(value) {
-  if (!value || typeof value !== "object") throw new Error("Missing curve state");
-  return {
-    epochIndex: uint(value.epochIndex, 64),
-    openTime: uint(value.openTime, 64),
-    curveStartTime: uint(value.curveStartTime, 64),
-    anchorTime: uint(value.anchorTime, 64),
-    floorPrice: uint(value.floorPrice, 256)
-  };
-}
-
-function wireState(value) {
-  return Object.fromEntries(fields.map((field) => [field, value[field].toString()]));
 }
 
 function limited(promise, milliseconds = 8000) {
