@@ -11,15 +11,15 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
+  <script src="/projects.js" defer></script>
 </head>
 <body>
   <div class="opening">
     <header class="site-header reading-column">
       <a class="brand" href="/" aria-label="Pulse home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Pulse</a>
-      <nav class="header-links" aria-label="Main navigation"><a href="#lab">Try it</a><a href="/projects">Projects</a></nav>
+      <nav class="header-links" aria-label="Main navigation"><a href="#lab">Try it</a><a href="#projects">Projects</a><a href="#build">Build</a></nav>
     </header>
     <section class="hero reading-column" aria-labelledby="hero-title">
-      <p class="eyebrow">A decentralized automatic auction</p>
       <h1 id="hero-title">Can time balance<br><em>supply and demand?</em></h1>
       <p>A seller offers a price. Demand may arrive now, later, or never. How should that price respond without someone continually adjusting it?</p>
       <p class="hero-proposition">Pulse proposes a rule that lets waiting and buying shape the next price.</p>
@@ -30,36 +30,17 @@
     <section class="chapter" id="mechanism" aria-labelledby="mechanism-heading">
       <h2 id="mechanism-heading">Waiting drops. Buying pumps.</h2>
       <p>For the drop, Pulse uses a <strong>Dutch auction</strong>: the asking price falls while nobody buys. Its curve approaches a floor, treating the wait as a signal of cooling demand.</p>
-      <p>For the pump, Pulse uses the <strong>Price–Time Scale</strong>, or PTS. A purchase lifts the next ask above the price just paid. The time spent waiting sets the target size of that lift:</p>
-      <div class="central-equation" aria-label="Pump target equals Price–Time Scale multiplied by waiting time">pump target = PTS × waiting time</div>
-      <p class="equation-note">Count the wait from the last purchase—or from opening for the first purchase.</p>
+      <p>For the pump, Pulse uses the <strong>Price–Time Scale</strong>, or PTS. A purchase lifts the next ask above the price just paid. The time spent waiting sets the target price increase:</p>
+      <div class="central-equation" aria-label="Target price increase equals Price–Time Scale multiplied by waiting time">target price increase = PTS × waiting time</div>
       <p>A longer wait targets a larger pulse; a shorter wait targets a smaller one. Each purchase starts the next descending curve.</p>
       <details class="disclosure mathematics">
         <summary>The mathematics</summary>
         <div class="disclosure-body">
           <p>The drop follows a Dutch auction curve. In the continuous model, the ask decays as time <b>t</b> moves away from anchor <b>A</b>. <b>B</b> is the floor; <b>k</b> determines the curve.</p>
           <p class="equation">p(t) = B + k / (t − A)</p>
-          <p>The pump is set by PTS. For a positive wait <b>Δ</b>, a purchase accepts price <b>P</b> and sets target pulse <b>R = PTS × Δ</b>. Core V1 chooses <b>P</b> as the next floor. With that choice, the ideal next curve starts at <b>P + R</b>. Here, <b>u</b> is time since that purchase:</p>
-          <p class="equation">p<sub>next</sub>(u) = P + k / (u + k/R)</p>
-          <p>A larger pulse does not necessarily mean a higher absolute next ask: the price paid has also been falling. This is a proposition for price discovery, not a proof of equilibrium.</p>
-          <h3>In the released Core</h3>
-          <p>V1 uses integer seconds and payment units. For a purchase at <b>τ</b>, in an epoch that started at <b>s</b>:</p>
-          <div class="exact-equations">
-            <code>P = B + ⌊k / max(1, τ − A)⌋</code>
-            <code>R = pts × max(τ − s, 1)</code>
-            <code>d = ⌊k / R⌋</code>
-            <code>B_next = P; A_next = τ − d</code>
-            <code>p_next(u) = P + ⌊k / max(1, d + u)⌋</code>
-          </div>
-          <p>The pump calculation uses a one-second minimum wait. Rounding can make the actual lift differ from its target; when <b>R &gt; k</b>, the opening lift is clamped to <b>k</b>.</p>
-          <a href="https://github.com/inshell-art/pulse/blob/main/docs/evm/pulse-core-api.md" target="_blank" rel="noopener noreferrer">Read the full calculation specification ↗</a>
-        </div>
-      </details>
-      <details class="disclosure" id="floor-note">
-        <summary>Implementation note: the floor</summary>
-        <div class="disclosure-body">
-          <p>Core V1 sets <strong>next floor = last sale</strong>. This simple ratchet retains each accepted price, aiming to limit eventual supply as further purchases become harder.</p>
-          <p>The floor rule is one practical way to run Pulse, not a requirement of the drop-and-pump proposition. The resulting supply depends on demand; no fixed final quantity is guaranteed.</p>
+          <p>For a positive waiting time <b>Δ</b>, PTS sets the target price increase <b>R</b>:</p>
+          <p class="equation">R = PTS × Δ</p>
+          <p>A larger increase does not necessarily mean a higher absolute next ask: the price paid has also been falling. This is a proposition for price discovery, not a proof of equilibrium.</p>
         </div>
       </details>
     </section>
@@ -67,7 +48,7 @@
     <section class="chapter lab" id="lab" aria-labelledby="lab-heading">
       <h2 id="lab-heading">Try the proposition.</h2>
       <p>Move time forward to see the drop. Make a simulated purchase to trigger the pump. Repeat at a different moment and compare.</p>
-      <p class="lab-context">The last sale sets the floor here. No wallet or payment.</p>
+      <p class="lab-context">Simulation using <a href="#core-implementation">Pulse Core V1</a>. No wallet or payment.</p>
 
       <div class="instrument">
         <div class="readout-row">
@@ -83,7 +64,7 @@
           <input id="time-slider" type="range" min="0" max="360" step="1" value="45">
           <div class="time-ends"><span>Opening</span><span>6 hours</span></div>
         </div>
-        <p id="pulse-summary" class="pulse-summary" aria-live="polite">Connecting to the Sepolia calculator…</p>
+        <p id="pulse-summary" class="pulse-summary" aria-live="polite">Connecting to Sepolia Core…</p>
         <div class="action-row"><button type="button" id="buy-button" class="primary-button">Simulate purchase</button><button type="button" id="reset-button" class="text-button">Start again</button></div>
         <p class="action-help" id="action-help" role="status"></p>
       </div>
@@ -94,10 +75,10 @@
           <p class="projection-mode" id="projection-mode">If you buy at this moment</p>
           <dl class="calculation-list">
             <div><dt>Wait before purchase</dt><dd id="wait-readout">—</dd></div>
-            <div><dt>PTS × wait · target pulse</dt><dd id="pump-readout">—</dd></div>
-            <div><dt>Actual V1 lift</dt><dd id="actual-pump-readout">—</dd></div>
-            <div><dt>Next opening ask</dt><dd id="next-ask-readout">—</dd></div>
-            <div><dt>Current floor</dt><dd id="floor-readout">—</dd></div>
+            <div><dt>Target price increase · PTS × wait</dt><dd id="pump-readout">—</dd></div>
+            <div><dt aria-describedby="actual-increase-note">Actual price increase<sup><a href="#actual-increase-note" aria-label="Why the actual price increase can differ">**</a></sup></dt><dd id="actual-pump-readout">—</dd></div>
+            <div><dt>Next ask</dt><dd id="next-ask-readout">—</dd></div>
+            <div><dt>Current floor price</dt><dd id="floor-readout">—</dd></div>
           </dl>
           <p id="readout-sub" class="connection-note">Checking the selected ask…</p>
           <p class="connection-note"><span class="network-dot" id="network-dot"></span><span id="network-status">Connecting to Sepolia…</span> · <a href="https://sepolia.etherscan.io/address/0xfb1Cc26356b1b0361c414Ec1B5fB52c5FEDc3EAC" target="_blank" rel="noopener noreferrer">Core V1 ↗</a></p>
@@ -110,10 +91,10 @@
         <div class="disclosure-body">
           <p class="controls-intro">Changing a rule starts a new scenario.</p>
           <div class="presets" role="group" aria-label="Curve presets"><button type="button" class="preset active" data-preset="balanced">Reference</button><button type="button" class="preset" data-preset="slow">Slow</button><button type="button" class="preset" data-preset="lively">Fast</button></div>
-          <div class="control"><div class="control-label"><label for="target">Opening target</label><output id="target-value" for="target"></output></div><input id="target" type="range" min="0.30" max="2.50" step="0.05" value="1.00"><p>Rounding can change the exact opening ask.</p></div>
-          <div class="control"><div class="control-label"><label for="floor">Starting floor</label><output id="floor-value" for="floor"></output></div><input id="floor" type="range" min="0" max="0.90" step="0.05" value="0.20"><p>The first curve approaches this price.</p></div>
-          <div class="control"><div class="control-label"><label for="decay">Time to halfway</label><output id="decay-value" for="decay"></output></div><input id="decay" type="range" min="5" max="180" step="5" value="45"><p>Approximate time for the gap above the floor to halve.</p></div>
-          <div class="control"><div class="control-label"><label for="rebound">Price–Time Scale</label><output id="rebound-value" for="rebound"></output></div><input id="rebound" type="range" min="0.10" max="1.20" step="0.02" value="0.24"><p>Target pulse per hour spent waiting in the current epoch.</p></div>
+          <div class="control"><div class="control-label"><label for="target">Genesis price</label><output id="target-value" for="target"></output></div><input id="target" type="range" min="0.30" max="2.50" step="0.05" value="1.00"><p>The initial price target. Rounding can change the actual opening ask.</p></div>
+          <div class="control"><div class="control-label"><label for="floor">Genesis floor</label><output id="floor-value" for="floor"></output></div><input id="floor" type="range" min="0" max="0.90" step="0.05" value="0.20"><p>The first curve approaches this price.</p></div>
+          <div class="control"><div class="control-label"><label for="decay">Initial time to halfway</label><output id="decay-value" for="decay"></output></div><input id="decay" type="range" min="5" max="180" step="5" value="45"><p>Sets the curve constant k from the genesis price–floor gap. This is the initial time for that gap to halve.</p></div>
+          <div class="control"><div class="control-label"><label for="rebound">Price–Time Scale (PTS)</label><output id="rebound-value" for="rebound"></output></div><input id="rebound" type="range" min="0.10" max="1.20" step="0.02" value="0.24"><p>Target price increase per hour spent waiting in the current epoch.</p></div>
         </div>
       </details>
 
@@ -122,10 +103,57 @@
         <div id="story-list" class="story-list"></div>
       </details>
     </section>
+    <section class="chapter" id="core-implementation" aria-labelledby="core-implementation-heading">
+      <h2 id="core-implementation-heading">Pulse Core implementation.</h2>
+      <p>Pulse Core V1 is a stateless calculator: it returns prices and the next curve, while application contracts store their own auction state and handle purchases. It implements one practical floor policy:</p>
+      <div class="central-equation" id="floor-note" aria-label="Next floor equals previous sale price">next floor = previous sale price</div>
+      <p>PTS sets the target price increase; this <strong>floor ratchet</strong> sets the baseline. Each accepted sale price becomes the next floor. Waiting can lower the ask toward it, while the floor itself can only rise or stay level.</p>
+      <p>The rule keeps the implementation simple and aims to constrain further issuance through price. It guarantees neither a fixed supply nor an eventual stop. It is a choice made by Core V1, separate from the broader proposition that waiting drops and buying pumps.</p>
+      <details class="disclosure" id="timing-note">
+        <summary>Timing and exact calculations</summary>
+        <div class="disclosure-body">
+          <p>Core V1 counts waiting time from the last purchase—or from opening for the first purchase. The price-increase calculation uses a one-second minimum wait.</p>
+          <p>With sale price <b>P</b> as the next floor and target increase <b>R</b>, the ideal next curve starts at <b>P + R</b>. Here, <b>u</b> is time since the purchase:</p>
+          <p class="equation">p<sub>next</sub>(u) = P + k / (u + k/R)</p>
+          <p>V1 uses integer seconds and payment units. For a purchase at <b>τ</b>, in an epoch that started at <b>s</b>:</p>
+          <div class="exact-equations">
+            <code>P = B + ⌊k / max(1, τ − A)⌋</code>
+            <code>R = pts × max(τ − s, 1)</code>
+            <code>d = ⌊k / R⌋</code>
+            <code>B_next = P; A_next = τ − d</code>
+            <code>p_next(u) = P + ⌊k / max(1, d + u)⌋</code>
+          </div>
+          <p>When <b>R &gt; k</b>, the actual price increase is capped at <b>k</b>.</p>
+          <a href="https://github.com/inshell-art/pulse/blob/main/docs/evm/pulse-core-api.md" target="_blank" rel="noopener noreferrer">Read the full calculation specification ↗</a>
+        </div>
+      </details>
+      <p id="sepolia-core-note" class="connection-note implementation-note" tabindex="-1">* The playground calls Pulse Core on Sepolia, an Ethereum test network, to calculate the simulated purchase price and next curve. This is a read-only call: no transaction, gas payment, or on-chain state change.</p>
+      <p id="actual-increase-note" class="connection-note implementation-note" tabindex="-1">** Core calculates in whole seconds and whole payment units. Rounding can make the actual price increase larger than the target; targets above the curve’s maximum increase are capped.</p>
+    </section>
+
+    <section class="chapter projects-preview" id="projects" aria-labelledby="projects-heading">
+      <h2 id="projects-heading">Explore projects.</h2>
+      <p>Independent experiments using or exploring Pulse.</p>
+      <div id="project-list" class="project-list" data-compact="true" aria-live="polite"><p>Loading projects…</p></div>
+      <p id="directory-status" class="implementation-note">No verified live auctions are listed yet.</p>
+      <p class="implementation-note">Listing is optional. <a href="/projects">Listing details →</a> · <a href="https://github.com/inshell-art/pulse/issues/new" target="_blank" rel="noopener noreferrer">Suggest a project ↗</a></p>
+    </section>
+
+    <section class="chapter" id="build" aria-labelledby="build-heading">
+      <h2 id="build-heading">Build with Pulse.</h2>
+      <p>Bring Pulse to your own auction. Choose how to use the calculations; no registration is required.</p>
+      <p><strong>Call the shared Core.</strong> Connect your application to the released Core contract on Sepolia. <a href="https://github.com/inshell-art/pulse/blob/main/docs/evm/pulse-core-integration.md" target="_blank" rel="noopener noreferrer">Integration guide ↗</a></p>
+      <p><strong>Import the math.</strong> Compile the Pulse calculation library into your own contract. <a href="https://github.com/inshell-art/pulse/tree/pulse-core-v1.0.0/evm/src/core" target="_blank" rel="noopener noreferrer">Calculation source ↗</a></p>
+      <p class="implementation-note">Start with the <a href="https://github.com/inshell-art/pulse/releases/tag/pulse-core-v1.0.0" target="_blank" rel="noopener noreferrer">Core V1 release ↗</a> for the interface, deployment record, and reference material.</p>
+    </section>
+
+    <section class="chapter" id="daa" aria-labelledby="daa-heading">
+      <h2 id="daa-heading">DAA</h2>
+      <p><strong>Decentralized Automatic Auction.</strong> Pulse proposes an auction where transparent, preset rules move the price in response to time and purchases. Waiting drops the ask; buying pumps it. Once those rules are set, no auctioneer chooses the next price.</p>
+    </section>
   </main>
 
   <footer class="site-footer reading-column">
-    <nav aria-label="Continue with Pulse"><a href="/projects">Explore projects →</a><a href="https://github.com/inshell-art/pulse/blob/main/docs/evm/pulse-core-integration.md" target="_blank" rel="noopener noreferrer">Build with Pulse ↗</a></nav>
     <p>Pulse · <a href="https://github.com/inshell-art/pulse" target="_blank" rel="noopener noreferrer">Open source</a> · <a href="https://github.com/inshell-art/pulse/releases/tag/pulse-core-v1.0.0" target="_blank" rel="noopener noreferrer">Core V1</a></p>
   </footer>
 </body>

@@ -1,4 +1,5 @@
 const projectList = document.getElementById("project-list");
+const compactProjects = projectList.dataset.compact === "true";
 const directoryStatus = document.getElementById("directory-status");
 
 function publicLink(url) {
@@ -35,13 +36,23 @@ async function loadProjects() {
       if (project.stage === "live" && auctionUrl) liveCount++;
       const card = document.createElement("article");
       card.className = "project-card";
-      const heading = document.createElement("h2");
-      heading.textContent = project.name;
+      const heading = document.createElement(compactProjects ? "h3" : "h2");
+      if (compactProjects) heading.append(projectAnchor(project.name, projectUrl));
+      else heading.textContent = project.name;
       const top = document.createElement("p");
       top.className = "project-card-top";
-      top.textContent = `${project.stageLabel} · ${project.integrationLabel}`;
+      top.textContent = compactProjects ? project.stageLabel : `${project.stageLabel} · ${project.integrationLabel}`;
       const summary = document.createElement("p");
-      summary.textContent = project.summary;
+      summary.textContent = compactProjects ? (project.shortSummary ?? project.summary) : project.summary;
+      if (compactProjects) {
+        const titleRow = document.createElement("div");
+        titleRow.className = "project-title-row";
+        titleRow.append(heading, top);
+        card.append(titleRow, summary);
+        if (project.stage === "live" && auctionUrl) card.append(projectAnchor("Auction ↗", auctionUrl));
+        projectList.append(card);
+        continue;
+      }
       const meta = document.createElement("div");
       meta.className = "project-meta";
       const check = document.createElement("span");

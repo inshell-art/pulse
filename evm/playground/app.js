@@ -87,7 +87,7 @@ function configFrom(values) {
   const target = ethWei(values.target);
   const floor = ethWei(values.floor);
   const gap = target - floor;
-  if (gap <= 0n) throw new Error("Opening target must exceed the floor");
+  if (gap <= 0n) throw new Error("Genesis price must exceed the genesis floor");
   return {
     k: (gap * BigInt(values.decay) * 60n).toString(),
     genesisPrice: target.toString(),
@@ -162,7 +162,7 @@ function localTransition(state, minute) {
 
 function waitText(seconds) {
   const minutes = Number(seconds) / 60;
-  if (minutes === 0) return "0 sec*";
+  if (minutes === 0) return "0 sec";
   if (minutes < 60) return `${minutes} min`;
   return `${Math.floor(minutes / 60)} hr${minutes % 60 ? ` ${minutes % 60} min` : ""}`;
 }
@@ -177,18 +177,30 @@ function drawPriceTime(state, minute) {
   const nextAsk = recordedSale ? localQuote(recordedSale.nextState, minute) : transition.nextAsk;
   const actualLift = recordedSale ? nextAsk - BigInt(recordedSale.ask) : transition.actualLift;
   projectionMode.textContent = recordedSale
-    ? "This simulated purchase · confirmed by Core"
+    ? "Simulated purchase · calculated by Sepolia Core"
     : "If you buy at this moment · local preview";
-  if (transition.elapsed === 0n) projectionMode.textContent += " · *one-second minimum for the pulse";
+  if (recordedSale) {
+    const marker = document.createElement("sup");
+    const noteLink = document.createElement("a");
+    noteLink.href = "#sepolia-core-note";
+    noteLink.setAttribute("aria-label", "About the Sepolia Core calculation");
+    noteLink.textContent = "*";
+    marker.append(noteLink);
+    projectionMode.append(marker);
+    projectionMode.setAttribute("aria-describedby", "sepolia-core-note");
+  } else {
+    projectionMode.removeAttribute("aria-describedby");
+  }
+  if (transition.elapsed === 0n) projectionMode.append(" · one-second minimum wait for the price increase");
   askLabel.textContent = recordedSale ? "Next ask after your purchase" : "Ask at this moment";
   waitReadout.textContent = waitText(transition.elapsed);
   pumpReadout.textContent = `+${ethText(transition.premium, 6)} ETH`;
   actualPumpReadout.textContent = `+${ethText(actualLift, 6)} ETH`;
   nextAskReadout.textContent = `${ethText(nextAsk, 6)} ETH`;
-  const wait = waitText(transition.elapsed).replace("*", "");
+  const wait = waitText(transition.elapsed);
   pulseSummary.textContent = recordedSale
     ? `You bought at ${ethText(recordedSale.ask)} ETH after ${wait}. The next ask is ${ethText(nextAsk)} ETH, with a new floor of ${ethText(recordedSale.ask)} ETH.`
-    : `After ${wait}, buying at ${ethText(transition.ask)} ETH targets a ${ethText(transition.premium)} ETH pulse. The next ask would be ${ethText(nextAsk)} ETH.`;
+    : `After ${wait}, buying at ${ethText(transition.ask)} ETH targets a ${ethText(transition.premium)} ETH price increase. The next ask would be ${ethText(nextAsk)} ETH.`;
 }
 
 function stateAt(minute) {
@@ -294,9 +306,9 @@ function drawStory() {
     const previousState = index === 0 ? scenario.initialState : scenario.steps[index - 1].nextState;
     const transition = localTransition(previousState, step.minute);
     const nextAsk = localQuote(step.nextState, step.minute);
-    detail.textContent = `Wait ${waitText(transition.elapsed)}${transition.elapsed === 0n ? " (1 sec minimum for pump)" : ""} · PTS × wait ≈ ${ethText(transition.premium, 6)} ETH target`;
+    detail.textContent = `Wait ${waitText(transition.elapsed)}${transition.elapsed === 0n ? " (1 sec minimum for the price increase)" : ""} · Target price increase ≈ ${ethText(transition.premium, 6)} ETH (PTS × wait)`;
     const result = document.createElement("span");
-    result.textContent = `Actual lift +${ethText(nextAsk - BigInt(step.ask), 6)} ETH → next ask ${ethText(nextAsk, 6)} ETH · floor ${ethText(step.nextState.floorPrice)} ETH`;
+    result.textContent = `Actual price increase +${ethText(nextAsk - BigInt(step.ask), 6)} ETH → next ask ${ethText(nextAsk, 6)} ETH · floor price ${ethText(step.nextState.floorPrice)} ETH`;
     copy.append(title, detail, result);
     item.append(badge, copy);
     storyList.append(item);
@@ -312,7 +324,7 @@ function render() {
   floorReadout.textContent = `${ethText(state.floorPrice)} ETH`;
   epochChip.textContent = `Epoch ${state.epochIndex}`;
   timeSlider.value = String(minute);
-  timeValue.textContent = waitText(BigInt(minute) * 60n).replace("*", "");
+  timeValue.textContent = waitText(BigInt(minute) * 60n);
   const lastMinute = scenario.steps.at(-1)?.minute ?? -1;
   buyButton.disabled = busy || !ready || minute <= lastMinute;
   actionHelp.textContent = minute <= lastMinute
@@ -331,7 +343,7 @@ function render() {
     try {
       const result = await callCore({ function: "quote", config: scenarioAtCall.config, state, timestamp });
       if (scenario !== scenarioAtCall || scenario.cursorMinute !== minute) return;
-      readoutSub.textContent = result.ask === expected ? "✓ Confirmed by Sepolia Core" : "Calculation mismatch — do not rely on this preview";
+      readoutSub.textContent = result.ask === expected ? "" : "Calculation mismatch — do not rely on this preview";
     } catch {
       if (scenario === scenarioAtCall && scenario.cursorMinute === minute) readoutSub.textContent = "Sepolia unavailable · showing a local preview";
     }
@@ -396,7 +408,7 @@ async function boot() {
   buyButton.disabled = true;
   try {
     const response = await fetch("/api/status");
-    if (!response.ok) throw new Error("Cannot reach the local Core gateway");
+    if (!response.ok) throw new Error("Cannot reach the Core gateway");
     const status = await response.json();
     if (!status.verified || status.chainId !== 11155111) throw new Error("Core verification failed");
     ready = true;
@@ -418,7 +430,7 @@ async function boot() {
     networkDot.classList.add("error");
     networkStatus.textContent = "Sepolia unavailable";
     readoutSub.textContent = error.message;
-    pulseSummary.textContent = "The Sepolia calculator is unavailable. Refresh the page to try again.";
+    pulseSummary.textContent = "Sepolia Core is unavailable. Refresh the page to try again.";
   }
 }
 
