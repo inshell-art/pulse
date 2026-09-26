@@ -4,7 +4,7 @@ This is the first-party Pulse website. It explains the decentralized automatic a
 
 Both pages follow the system light/dark preference automatically, including chart colors and form controls. No theme preference is stored.
 
-The chosen public domain is **`pulse.inshell.art`**, a subdomain of `inshell.art`; no separate domain registration is needed. The site remains a **local preview** for review. Public hosting and DNS setup are pending.
+The public site is **https://pulse.inshell.art**, served by the Cloudflare Worker `pulse-site`. Published on 2026-09-26, with HTTPS routes and read-only Sepolia Core calculations verified. Local preview remains available for development.
 
 The narrative separates the proposition (waiting drops, buying pumps), its mechanisms (Dutch auction decay and Price–Time Scale), and Core V1's practical floor policy (next floor equals previous sale price). A dedicated **Pulse Core implementation** section follows the lab, before DAA. It explains the floor ratchet, its simplicity and intended constraint on further issuance, and the separation between Core's calculations and application-owned state. The ratchet is a practical choice, not a requirement of the broader proposition, a fixed supply cap, or a guarantee that sales eventually stop. The waiting-time convention and V1-specific mathematics sit in a collapsed disclosure here. The Sepolia-call and rounding footnotes also live here, linked from the lab’s calculation readouts; the lab itself keeps only the experiment, controls, results, connection status, and privacy note. The lab demonstrates this released V1 policy.
 
@@ -34,6 +34,8 @@ The Cloudflare Worker serves the same seven browser assets and a read-only Sepol
 The Worker uses public Sepolia RPC endpoints with failover, verifies the chain, released runtime hash and version before calculations, and refreshes that verification every five minutes per isolate. Only `initialize`, `quote`, and `advance` calls to the pinned Core address are accepted. Inputs have byte-size and ABI-width bounds; upstream calls have timeouts. Rate and concurrency limits apply per isolate, not as an account-wide quota. Worker observability is disabled, and the application does not persist calculation requests. Cloudflare and RPC providers still handle network requests.
 
 Run `node --test evm/playground/worker.test.js` from the repository root for gateway boundary tests. After deployment, run `python3 evm/playground/smoke-site.py https://pulse.inshell.art` to verify HTTPS routes and actual Sepolia calculations.
+
+The initial publication used the Worker custom-domain API after Wrangler uploaded the site: the deployment credential permitted custom domains but not the zone's Worker-route listing. Future Wrangler deployments need the documented route permissions as well. The domain connection was checked for conflicts and added without replacing existing DNS records or services.
 
 ## Publish on a Node host
 

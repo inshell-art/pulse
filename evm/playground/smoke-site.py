@@ -1,4 +1,8 @@
 import json, sys, urllib.request, urllib.error
+# Match the browser-facing gateway: the public zone blocks Python's default UA.
+opener = urllib.request.build_opener()
+opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Pulse site smoke test)')]
+urllib.request.install_opener(opener)
 base = sys.argv[1].rstrip('/') if len(sys.argv) > 1 else 'http://127.0.0.1:4173'
 def get(path):
     with urllib.request.urlopen(base+path,timeout=20) as r:
