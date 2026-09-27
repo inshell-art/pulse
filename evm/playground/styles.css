@@ -93,6 +93,7 @@ h2 { margin-bottom: 24px; font-size: 38px; line-height: 1.15; letter-spacing: -1
 .disclosure[open] summary::after { content: "−"; }
 .disclosure summary:hover { color: var(--green); }
 .mathematics { margin-top: 32px; }
+.mechanism-conclusion { scroll-margin-top: 24px; }
 .disclosure-body { padding-bottom: 24px; line-height: 1.7; color: var(--ink-soft); }
 .disclosure-body > p { margin-bottom: 18px; }
 .disclosure-body h3 { margin-top: 28px; font-size: 15px; font-weight: 600; }
@@ -177,7 +178,29 @@ input[type="range"] { display: block; width: 100%; height: 28px; margin: 10px 0 
 .project-title-row .project-card-top { margin: 0; font-size: 12px; color: var(--muted); }
 .projects-preview .project-card > p { margin-bottom: 0; }
 .project-meta { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 12px; color: var(--muted); }
-.directory-page .site-footer { display: flex; gap: 28px; }
+.directory-page .site-footer { display: flex; gap: 28px; flex-wrap: wrap; }
+.agent-guide { border-block: 1px solid var(--line); color: var(--muted); }
+.agent-guide summary { padding-block: 11px; align-items: center; gap: 12px; font-size: 12px; line-height: 1.5; }
+.agent-guide-action { margin-left: auto; color: var(--green); white-space: nowrap; }
+.agent-guide summary::after { margin-left: 0; color: var(--green); }
+.agent-guide .disclosure-body { padding-top: 10px; }
+.opening .agent-guide {
+  color-scheme: dark;
+  --ink: var(--opening-text);
+  --ink-soft: #c4cec7;
+  --muted: #a8b8ad;
+  --panel: #1a2520;
+  --line: #43554b;
+  --green: var(--acid);
+  --button-bg: var(--acid);
+  --button-text: #111917;
+  --button-hover: #c6eb60;
+}
+.agent-guide .disclosure-body > p { margin: 0 0 18px; font-size: 13px; }
+.agent-guide .disclosure-body > p:last-child { margin-bottom: 0; }
+.agent-guide .disclosure-body a { text-decoration: underline; }
+.agent-guide textarea { display: block; width: 100%; margin-block: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--ink); font-family: var(--mono); font-size: 12px; line-height: 1.7; resize: vertical; }
+#agent-copy-status { color: var(--muted); font-size: 12px; }
 
 @media (max-width: 520px) {
   .site-header { padding-block: 25px; }

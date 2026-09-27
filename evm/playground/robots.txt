@@ -1,0 +1,4 @@
+# Public knowledge index: https://pulse.inshell.art/docs/agent-index.json
+User-agent: *
+Allow: /api/status
+Disallow: /api/

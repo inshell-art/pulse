@@ -11,12 +11,23 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script src="/projects.js" defer></script>
+  <script src="/agent.js" defer></script>
+  <link rel="alternate" type="application/json" href="/docs/agent-index.json" title="Pulse public knowledge index">
 </head>
 <body class="directory-page">
   <header class="site-header">
     <a class="brand" href="/" aria-label="Pulse home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Pulse</a>
     <nav class="header-links" aria-label="Main navigation"><a href="/">Back home</a></nav>
   </header>
+  <details class="disclosure agent-guide reading-column" id="agent-guide">
+    <summary><span>Ask your agent about Pulse</span><span class="agent-guide-action">Get prompt</span></summary>
+    <div class="disclosure-body">
+      <p>Copy the prompt to explore Pulse with your agent. It downloads the documents it needs to read locally.</p>
+      <div class="action-row"><button type="button" class="primary-button" id="copy-agent-prompt" disabled>Copy prompt</button><span id="agent-copy-status" role="status" aria-live="polite"></span></div>
+      <textarea id="agent-prompt" readonly rows="10" aria-label="Prompt for your agent"></textarea>
+      <p><a href="/docs/agent-index.json">Document index</a> · <a href="/docs/document-format.md">How downloads work</a> · <a href="/docs/agent-prompt.txt">Open prompt</a></p>
+    </div>
+  </details>
   <main class="reading-column">
     <h1>Experiments with Pulse.</h1>
     <p>Independent projects use and explore the mechanism in their own ways.</p>
@@ -24,8 +35,10 @@
     <div id="project-list" class="project-list" aria-live="polite"><p>Loading project notes…</p></div>
     <p>This directory is maintained by hand, off-chain. Listing is optional and does not certify a project. Each project’s own application provides its sale terms and auction state.</p>
     <p>Building an experiment? Call the shared Core or import the calculation source. Your application owns its sale rules and state.</p>
-    <p><a href="https://github.com/inshell-art/pulse/blob/main/docs/evm/pulse-core-integration.md" target="_blank" rel="noopener noreferrer">Build with Pulse ↗</a> · <a href="https://github.com/inshell-art/pulse/issues/new" target="_blank" rel="noopener noreferrer">Suggest a project ↗</a></p>
+    <p><a href="https://github.com/inshell-art/pulse/blob/a08ec26e396b9d3e20ccebd8871f176368bcd713/docs/evm/pulse-core-integration.md" target="_blank" rel="noopener noreferrer">Build with Pulse ↗</a> · <a href="https://github.com/inshell-art/pulse/issues/new" target="_blank" rel="noopener noreferrer">Suggest a project ↗</a></p>
   </main>
-  <footer class="site-footer"><a href="/">Return to Pulse</a><a href="https://github.com/inshell-art/pulse" target="_blank" rel="noopener noreferrer">Source ↗</a></footer>
+  <footer class="site-footer">
+    <a href="/">Return to Pulse</a><a href="https://github.com/inshell-art/pulse" target="_blank" rel="noopener noreferrer">Source ↗</a>
+  </footer>
 </body>
 </html>

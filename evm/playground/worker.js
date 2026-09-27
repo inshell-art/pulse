@@ -2,13 +2,11 @@ import { Interface, keccak256 } from "ethers";
 import release from "../releases/pulse-core-v1/sepolia.json" with { type: "json" };
 import abi from "../releases/pulse-core-v1/IPulseCore.abi.json" with { type: "json" };
 import { errorNames, uint, config, state, wireState } from "./core-api.js";
+import { publicAssets } from "./public-assets.js";
 
 const core = new Interface(abi);
 const endpoints = ["https://ethereum-sepolia-rpc.publicnode.com", "https://sepolia.gateway.tenderly.co"];
-const paths = new Map([
-  ["/", "/index.html"], ["/projects", "/projects.html"], ["/projects/", "/projects.html"],
-  ...["app.js", "projects.js", "styles.css", "projects.json", "favicon.svg"].map((p) => [`/${p}`, `/${p}`])
-]);
+const paths = new Map([...publicAssets].map(([route, [, , asset]]) => [route, asset]));
 const headers = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
@@ -139,6 +137,7 @@ export function createWorker(fetchRpc = fetch) {
       const response = await env.ASSETS.fetch(new Request(url, request));
       const secured = new Response(response.body, response);
       for (const [key, value] of Object.entries(headers)) secured.headers.set(key, value);
+      if (response.ok) secured.headers.set("Content-Type", publicAssets.get(new URL(request.url).pathname)[1]);
       return secured;
     }
   };

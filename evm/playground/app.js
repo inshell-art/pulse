@@ -103,7 +103,7 @@ async function callCore(body) {
     body: JSON.stringify(body)
   });
   const value = await response.json();
-  if (!response.ok) throw new Error(value.error || "Sepolia calculation failed");
+  if (!response.ok) throw new Error(value.error || "Calculation service unavailable");
   return value;
 }
 
@@ -177,13 +177,13 @@ function drawPriceTime(state, minute) {
   const nextAsk = recordedSale ? localQuote(recordedSale.nextState, minute) : transition.nextAsk;
   const actualLift = recordedSale ? nextAsk - BigInt(recordedSale.ask) : transition.actualLift;
   projectionMode.textContent = recordedSale
-    ? "Simulated purchase · calculated by Sepolia Core"
+    ? "Simulated purchase"
     : "If you buy at this moment · local preview";
   if (recordedSale) {
     const marker = document.createElement("sup");
     const noteLink = document.createElement("a");
     noteLink.href = "#sepolia-core-note";
-    noteLink.setAttribute("aria-label", "About the Sepolia Core calculation");
+    noteLink.setAttribute("aria-label", "How the simulated purchase is calculated");
     noteLink.textContent = "*";
     marker.append(noteLink);
     projectionMode.append(marker);
@@ -330,7 +330,7 @@ function render() {
   actionHelp.textContent = minute <= lastMinute
     ? "Move time forward to try another purchase."
     : "";
-  readoutSub.textContent = "Checking this ask with Sepolia Core…";
+  readoutSub.textContent = "Checking this ask…";
   drawPriceTime(state, minute);
   drawChart();
   drawStory();
@@ -345,7 +345,7 @@ function render() {
       if (scenario !== scenarioAtCall || scenario.cursorMinute !== minute) return;
       readoutSub.textContent = result.ask === expected ? "" : "Calculation mismatch — do not rely on this preview";
     } catch {
-      if (scenario === scenarioAtCall && scenario.cursorMinute === minute) readoutSub.textContent = "Sepolia unavailable · showing a local preview";
+      if (scenario === scenarioAtCall && scenario.cursorMinute === minute) readoutSub.textContent = "Calculation service unavailable · showing a local preview";
     }
   }, 180);
 }
@@ -354,7 +354,7 @@ async function createScenario() {
   const token = ++generation;
   busy = true;
   buyButton.disabled = true;
-  readoutSub.textContent = "Starting a new curve on Sepolia Core…";
+  readoutSub.textContent = "Starting a new curve…";
   try {
     const values = selectedControls();
     const config = configFrom(values);
@@ -369,7 +369,7 @@ async function createScenario() {
     if (token !== generation) return;
     busy = false;
     readoutSub.textContent = `Could not start curve: ${error.message}`;
-    actionHelp.textContent = "Could not start a new curve. Check your settings or Sepolia connection, then try Start again.";
+    actionHelp.textContent = "Could not start a new curve. Check your settings or connection, then try Start again.";
   }
 }
 
@@ -381,7 +381,7 @@ async function simulatePurchase() {
   if (minute <= lastMinute) return;
   busy = true;
   buyButton.disabled = true;
-  actionHelp.textContent = "Asking Sepolia Core for the next curve…";
+  actionHelp.textContent = "Calculating the next curve…";
   try {
     const currentState = scenario.steps.at(-1)?.nextState ?? scenario.initialState;
     const expected = localTransition(currentState, minute);
@@ -429,8 +429,8 @@ async function boot() {
   } catch (error) {
     networkDot.classList.add("error");
     networkStatus.textContent = "Sepolia unavailable";
-    readoutSub.textContent = error.message;
-    pulseSummary.textContent = "Sepolia Core is unavailable. Refresh the page to try again.";
+    readoutSub.textContent = "The calculation service is unavailable.";
+    pulseSummary.textContent = "The simulation is unavailable. Refresh the page to try again.";
   }
 }
 

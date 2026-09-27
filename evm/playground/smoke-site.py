@@ -1,5 +1,6 @@
-import json, sys, urllib.request, urllib.error
-# Match the browser-facing gateway: the public zone blocks Python's default UA.
+import hashlib, json, sys, urllib.request, urllib.error
+# Match browser requests to the lab gateway. smoke-public-access.py separately
+# verifies public discovery using Python's unmodified default user agent.
 opener = urllib.request.build_opener()
 opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Pulse site smoke test)')]
 urllib.request.install_opener(opener)
@@ -13,7 +14,18 @@ def call(body,header=True):
     if header: headers['X-Pulse-Playground']='1'
     req=urllib.request.Request(base+'/api/call',data=json.dumps(body).encode(),headers=headers)
     with urllib.request.urlopen(req,timeout=25) as r: return json.load(r)
-for path in ['/', '/projects', '/projects/', '/app.js', '/projects.js', '/styles.css', '/favicon.svg', '/projects.json']: assert get(path)
+paths=['/', '/projects', '/projects/', '/app.js', '/projects.js', '/agent.js', '/styles.css', '/favicon.svg', '/robots.txt', '/projects.json', '/docs/agent-index.json', '/docs/agent-prompt.txt', '/docs/pulse.md', '/docs/playground.md']
+pages={path:get(path) for path in paths}
+assert all(pages.values())
+index=json.loads(pages['/docs/agent-index.json'])
+assert index['schema']=='pulse.public-knowledge-index/v1'
+assert index['answerPolicy']['forbidStateChanges']
+for entry in index['documents']+index['projectContext']:
+    if entry['url'].startswith('/'):
+        assert hashlib.sha256(pages[entry['url']]).hexdigest()==entry['sha256']
+for path in ['/docs/agent-index.json', '/docs/agent-prompt.txt', '/docs/pulse.md', '/docs/playground.md']:
+    with urllib.request.urlopen(urllib.request.Request(base+path,method='HEAD'),timeout=20) as r:
+        assert r.status==200 and r.read()==b''
 status=json.loads(get('/api/status'));assert status['verified'] and status['chainId']==11155111
 config={'k':'600','genesisPrice':'1000','genesisFloor':'900','pts':'1'}
 initial=call({'function':'initialize','config':config,'startTime':'1000'})['state']
@@ -27,4 +39,4 @@ for body,header,expected in [({},False,403),({'function':'initialize','config':{
     except urllib.error.HTTPError as e:
         assert e.code==expected
         text=e.read().decode();assert 'https://' not in text
-print('PASS: 8 site routes; verified Sepolia identity; initialize/quote/advance/next quote; 3 invalid-request checks.')
+print(f'PASS: {len(paths)} site routes; agent document digests and HEAD; verified Sepolia identity; initialize/quote/advance/next quote; 3 invalid-request checks.')

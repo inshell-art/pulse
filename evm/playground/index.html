@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
   <script src="/projects.js" defer></script>
+  <script src="/agent.js" defer></script>
+  <link rel="alternate" type="application/json" href="/docs/agent-index.json" title="Pulse public knowledge index">
 </head>
 <body>
   <div class="opening">
@@ -19,6 +21,15 @@
       <a class="brand" href="/" aria-label="Pulse home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Pulse</a>
       <nav class="header-links" aria-label="Main navigation"><a href="#lab">Try it</a><a href="#projects">Projects</a><a href="#build">Build</a></nav>
     </header>
+    <details class="disclosure agent-guide reading-column" id="agent-guide">
+      <summary><span>Ask your agent about Pulse</span><span class="agent-guide-action">Get prompt</span></summary>
+      <div class="disclosure-body">
+        <p>Copy the prompt to explore Pulse with your agent. It downloads the documents it needs to read locally.</p>
+        <div class="action-row"><button type="button" class="primary-button" id="copy-agent-prompt" disabled>Copy prompt</button><span id="agent-copy-status" role="status" aria-live="polite"></span></div>
+        <textarea id="agent-prompt" readonly rows="10" aria-label="Prompt for your agent"></textarea>
+        <p><a href="/docs/agent-index.json">Document index</a> · <a href="/docs/document-format.md">How downloads work</a> · <a href="/docs/agent-prompt.txt">Open prompt</a></p>
+      </div>
+    </details>
     <section class="hero reading-column" aria-labelledby="hero-title">
       <h1 id="hero-title">Can time balance<br><em>supply and demand?</em></h1>
       <p>A seller offers a price. Demand may arrive now, later, or never. How should that price respond without someone continually adjusting it?</p>
@@ -29,10 +40,11 @@
   <main class="reading-column">
     <section class="chapter" id="mechanism" aria-labelledby="mechanism-heading">
       <h2 id="mechanism-heading">Waiting drops. Buying pumps.</h2>
-      <p>For the drop, Pulse uses a <strong>Dutch auction</strong>: the asking price falls while nobody buys. Its curve approaches a floor, treating the wait as a signal of cooling demand.</p>
-      <p>For the pump, Pulse uses the <strong>Price–Time Scale</strong>, or PTS. A purchase lifts the next ask above the price just paid. The time spent waiting sets the target price increase:</p>
+      <p>When nobody buys, Pulse lets the ask fall along a <strong>Dutch auction</strong> curve toward a floor. Waiting becomes a signal of cooling demand.</p>
+      <p>When someone buys, Pulse lifts the next ask above the price just paid. The <strong>Price–Time Scale</strong>, or PTS, sets the target increase from the time spent waiting:</p>
       <div class="central-equation" aria-label="Target price increase equals Price–Time Scale multiplied by waiting time">target price increase = PTS × waiting time</div>
-      <p>A longer wait targets a larger pulse; a shorter wait targets a smaller one. Each purchase starts the next descending curve.</p>
+      <p>A longer wait targets a larger increase; a shorter wait targets a smaller one. Each purchase starts a new descending curve. As the cycle repeats, participants shape the price through when they buy and how long they wait.</p>
+      <p class="mechanism-conclusion" id="daa">With these rules public and fixed before launch, Pulse becomes a <strong>Decentralized Automatic Auction (DAA)</strong>. Neither an operator nor an adaptive mechanism rewrites the rules to steer the outcome. Demand may grow, settle, or fade; success and failure are both outcomes to learn from.</p>
       <details class="disclosure mathematics">
         <summary>The mathematics</summary>
         <div class="disclosure-body">
@@ -48,7 +60,7 @@
     <section class="chapter lab" id="lab" aria-labelledby="lab-heading">
       <h2 id="lab-heading">Try the proposition.</h2>
       <p>Move time forward to see the drop. Make a simulated purchase to trigger the pump. Repeat at a different moment and compare.</p>
-      <p class="lab-context">Simulation using <a href="#core-implementation">Pulse Core V1</a>. No wallet or payment.</p>
+      <p class="lab-context">No wallet or payment. <a href="#core-implementation">How this simulation works</a>.</p>
 
       <div class="instrument">
         <div class="readout-row">
@@ -64,7 +76,7 @@
           <input id="time-slider" type="range" min="0" max="360" step="1" value="45">
           <div class="time-ends"><span>Opening</span><span>6 hours</span></div>
         </div>
-        <p id="pulse-summary" class="pulse-summary" aria-live="polite">Connecting to Sepolia Core…</p>
+        <p id="pulse-summary" class="pulse-summary" aria-live="polite">Preparing the simulation…</p>
         <div class="action-row"><button type="button" id="buy-button" class="primary-button">Simulate purchase</button><button type="button" id="reset-button" class="text-button">Start again</button></div>
         <p class="action-help" id="action-help" role="status"></p>
       </div>
@@ -81,8 +93,7 @@
             <div><dt>Current floor price</dt><dd id="floor-readout">—</dd></div>
           </dl>
           <p id="readout-sub" class="connection-note">Checking the selected ask…</p>
-          <p class="connection-note"><span class="network-dot" id="network-dot"></span><span id="network-status">Connecting to Sepolia…</span> · <a href="https://sepolia.etherscan.io/address/0xfb1Cc26356b1b0361c414Ec1B5fB52c5FEDc3EAC" target="_blank" rel="noopener noreferrer">Core V1 ↗</a></p>
-          <p class="privacy-note">Your scenario stays in this browser. Individual calculation inputs are sent to the Sepolia RPC; no scenario history is stored by this site.</p>
+          <p class="privacy-note">Your scenario history stays in this browser. Individual calculation inputs are sent to a remote service.</p>
         </div>
       </details>
 
@@ -109,6 +120,7 @@
       <div class="central-equation" id="floor-note" aria-label="Next floor equals previous sale price">next floor = previous sale price</div>
       <p>PTS sets the target price increase; this <strong>floor ratchet</strong> sets the baseline. Each accepted sale price becomes the next floor. Waiting can lower the ask toward it, while the floor itself can only rise or stay level.</p>
       <p>The rule keeps the implementation simple and aims to constrain further issuance through price. It guarantees neither a fixed supply nor an eventual stop. It is a choice made by Core V1, separate from the broader proposition that waiting drops and buying pumps.</p>
+      <p class="implementation-note">Each project must enforce the commitment to public, fixed rules in its own auction contract. Using Pulse Core alone does not make an application immutable.</p>
       <details class="disclosure" id="timing-note">
         <summary>Timing and exact calculations</summary>
         <div class="disclosure-body">
@@ -124,26 +136,20 @@
             <code>p_next(u) = P + ⌊k / max(1, d + u)⌋</code>
           </div>
           <p>When <b>R &gt; k</b>, the actual price increase is capped at <b>k</b>.</p>
-          <a href="https://github.com/inshell-art/pulse/blob/main/docs/evm/pulse-core-api.md" target="_blank" rel="noopener noreferrer">Read the full calculation specification ↗</a>
+          <a href="https://github.com/inshell-art/pulse/blob/a08ec26e396b9d3e20ccebd8871f176368bcd713/docs/evm/pulse-core-api.md" target="_blank" rel="noopener noreferrer">Read the full calculation specification ↗</a>
         </div>
       </details>
-      <p id="sepolia-core-note" class="connection-note implementation-note" tabindex="-1">* The playground calls Pulse Core on Sepolia, an Ethereum test network, to calculate the simulated purchase price and next curve. This is a read-only call: no transaction, gas payment, or on-chain state change.</p>
+      <p id="sepolia-core-note" class="connection-note implementation-note" tabindex="-1">* The playground calls Pulse Core V1 on Sepolia, an Ethereum test network, to calculate the simulated purchase price and next curve. Individual calculation inputs are sent to a Sepolia RPC provider. These calls are read-only: no transaction, gas payment, or on-chain state change.</p>
+      <p class="connection-note implementation-note"><span class="network-dot" id="network-dot" aria-hidden="true"></span><span id="network-status" role="status">Connecting to Sepolia…</span> · <a href="https://sepolia.etherscan.io/address/0xfb1Cc26356b1b0361c414Ec1B5fB52c5FEDc3EAC" target="_blank" rel="noopener noreferrer">View Core V1 on Sepolia ↗</a></p>
       <p id="actual-increase-note" class="connection-note implementation-note" tabindex="-1">** Core calculates in whole seconds and whole payment units. Rounding can make the actual price increase larger than the target; targets above the curve’s maximum increase are capped.</p>
     </section>
 
-    <section class="chapter" id="daa" aria-labelledby="daa-heading">
-      <h2 id="daa-heading">Pulse is a DAA.</h2>
-      <p><strong>Decentralized Automatic Auction.</strong> The commitment is to make the rules public and fix them before launch. Time and purchases move the price; neither an operator nor an adaptive mechanism rewrites the rules to steer the outcome.</p>
-      <p>That means being open to both success and failure. Demand may grow, settle, or fade. Whatever the response, let it stand as evidence of demand under the chosen rules.</p>
-      <p class="implementation-note">Each project must enforce this commitment in its own auction contract. Using Pulse Core alone does not make an application immutable.</p>
-    </section>
-
     <section class="chapter" id="where-pulse-fits" aria-labelledby="where-pulse-fits-heading">
-      <h2 id="where-pulse-fits-heading">Where Pulse fits.</h2>
-      <p>Pulse suits experiments whose outcomes are shaped by the people who take part.</p>
+      <h2 id="where-pulse-fits-heading">Where Pulse Core V1 fits.</h2>
+      <p>These uses suit Core V1’s floor ratchet: each sale sets the next floor, and that baseline cannot fall. Other implementations of the Pulse proposition may choose a different floor policy.</p>
       <p><strong>Experimental art.</strong> For an artwork released in editions, buying, waiting, and the resulting price history can become part of the work itself.</p>
-      <p><strong>Studying price and participation.</strong> Study Pulse itself through simulations or separate auctions with different fixed settings. Does a larger PTS change how long people wait? How does the rising floor affect further sales?</p>
-      <p>Pulse fits projects ready to welcome success, accept failure, and learn from either.</p>
+      <p><strong>Studying price and participation.</strong> Study Core V1 through simulations or separate auctions with different fixed settings. Does a larger PTS change how long people wait? How does the floor ratchet affect further sales?</p>
+      <p>These projects are ready to welcome success, accept failure, and learn from either.</p>
     </section>
 
     <section class="chapter projects-preview" id="projects" aria-labelledby="projects-heading">
@@ -157,7 +163,7 @@
     <section class="chapter" id="build" aria-labelledby="build-heading">
       <h2 id="build-heading">Build with Pulse.</h2>
       <p>Bring Pulse to your own auction. Choose how to use the calculations; no registration is required.</p>
-      <p><strong>Call the shared Core.</strong> Connect your application to the released Core contract on Sepolia. <a href="https://github.com/inshell-art/pulse/blob/main/docs/evm/pulse-core-integration.md" target="_blank" rel="noopener noreferrer">Integration guide ↗</a></p>
+      <p><strong>Call the shared Core.</strong> Connect your application to the released Core contract on Sepolia. <a href="https://github.com/inshell-art/pulse/blob/a08ec26e396b9d3e20ccebd8871f176368bcd713/docs/evm/pulse-core-integration.md" target="_blank" rel="noopener noreferrer">Integration guide ↗</a></p>
       <p><strong>Import the math.</strong> Compile the Pulse calculation library into your own contract. <a href="https://github.com/inshell-art/pulse/tree/pulse-core-v1.0.0/evm/src/core" target="_blank" rel="noopener noreferrer">Calculation source ↗</a></p>
       <p class="implementation-note">Start with the <a href="https://github.com/inshell-art/pulse/releases/tag/pulse-core-v1.0.0" target="_blank" rel="noopener noreferrer">Core V1 release ↗</a> for the interface, deployment record, and reference material.</p>
     </section>

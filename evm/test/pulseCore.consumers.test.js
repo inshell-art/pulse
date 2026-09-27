@@ -461,6 +461,9 @@ describe("Shared Pulse core: application conformance", function () {
   it("activates exactly at slot 1024 and permits one subsequent Pulse purchase in that block", async function () {
     const buyer = await actor();
     const app = await deployApp({ slots: 1024n, initialPrice: 0n });
+    // Activation is a later event than deployment. Ensure the first allocation
+    // transaction cannot share the deployment block timestamp on fast local EVMs.
+    await setNextBlockTimestamp(provider, (await now()) + 1n);
     const keys = Array.from({ length: 1024 }, (_, i) => key(`slot-${i}`));
     for (let i = 0; i < keys.length; i += 128) {
       await app.allowInitial(keys.slice(i, i + 128), await address(buyer));

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { errorNames, uint, config, state, wireState } from "./core-api.js";
+import { publicAssets as files } from "./public-assets.js";
+import { generateKnowledge } from "./generate-knowledge.js";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -8,16 +10,6 @@ import { Contract, JsonRpcProvider, keccak256 } from "ethers";
 const release = JSON.parse(readFileSync(new URL("../releases/pulse-core-v1/sepolia.json", import.meta.url), "utf8"));
 const manifest = JSON.parse(readFileSync(new URL("../releases/pulse-core-v1/manifest.json", import.meta.url), "utf8"));
 const abi = JSON.parse(readFileSync(new URL("../releases/pulse-core-v1/IPulseCore.abi.json", import.meta.url), "utf8"));
-const files = new Map([
-  ["/", ["index.html", "text/html; charset=utf-8"]],
-  ["/projects", ["projects.html", "text/html; charset=utf-8"]],
-  ["/projects/", ["projects.html", "text/html; charset=utf-8"]],
-  ["/app.js", ["app.js", "text/javascript; charset=utf-8"]],
-  ["/projects.js", ["projects.js", "text/javascript; charset=utf-8"]],
-  ["/styles.css", ["styles.css", "text/css; charset=utf-8"]],
-  ["/projects.json", ["projects.json", "application/json; charset=utf-8"]],
-  ["/favicon.svg", ["favicon.svg", "image/svg+xml"]]
-]);
 
 function rpcUrl() {
   const direct = process.env.PULSE_RPC_URL ?? process.env.SEPOLIA_RPC_URL;
@@ -46,6 +38,7 @@ function reply(res, status, body, type = "application/json; charset=utf-8") {
     "Content-Type": type,
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'"
   });
   res.end(body);
@@ -63,30 +56,44 @@ async function readBody(req) {
 async function main() {
   assert.equal(release.chainId, 11155111);
   assert.equal(release.runtimeCodeHash, manifest.runtimeCodeHash);
-  const configuredRpc = rpcUrl();
-  const rpcHosts = [configuredRpc];
-  if (new URL(configuredRpc).hostname === "ethereum-sepolia-rpc.publicnode.com") {
-    rpcHosts.push("https://sepolia.gateway.tenderly.co");
-  }
+  const { files: generated } = generateKnowledge();
   const connections = [];
-  for (const url of rpcHosts) {
-    const provider = new JsonRpcProvider(url);
-    try {
-      const network = await limited(provider.getNetwork());
-      assert.equal(network.chainId, 11155111n, "The configured RPC is not Sepolia");
-      const code = await limited(provider.getCode(release.address));
-      assert.notEqual(code, "0x", "Pulse Core is missing at the released address");
-      assert.equal(keccak256(code), release.runtimeCodeHash, "Pulse Core runtime hash differs from the release");
-      const core = new Contract(release.address, abi, provider);
-      assert.equal(await limited(core.version()), release.versionId, "Pulse Core version differs from the release");
-      const sample = { k: 2160n * 10n ** 18n, genesisPrice: 10n ** 18n, genesisFloor: 2n * 10n ** 17n, pts: 66666666666666n };
-      await limited(core.initialize(sample, BigInt(Math.floor(Date.now() / 1000))));
-      connections.push({ provider, core });
-    } catch {
-      provider.destroy();
-    }
+  let verification;
+  let retryAfter = 0;
+  async function ensureConnections() {
+    if (verification) return verification;
+    if (connections.length) return;
+    if (Date.now() < retryAfter) throw new Error("Sepolia unavailable");
+    verification = verifyConnections();
+    try { await verification; }
+    catch (error) { retryAfter = Date.now() + 5000; throw error; }
+    finally { verification = undefined; }
   }
-  assert(connections.length > 0, "No verified Sepolia RPC answered the Pulse Core calculation");
+  async function verifyConnections() {
+    const configuredRpc = rpcUrl();
+    const rpcHosts = [configuredRpc];
+    if (new URL(configuredRpc).hostname === "ethereum-sepolia-rpc.publicnode.com") {
+      rpcHosts.push("https://sepolia.gateway.tenderly.co");
+    }
+    for (const url of rpcHosts) {
+      const provider = new JsonRpcProvider(url);
+      try {
+        const network = await limited(provider.getNetwork());
+        assert.equal(network.chainId, 11155111n, "The configured RPC is not Sepolia");
+        const code = await limited(provider.getCode(release.address));
+        assert.notEqual(code, "0x", "Pulse Core is missing at the released address");
+        assert.equal(keccak256(code), release.runtimeCodeHash, "Pulse Core runtime hash differs from the release");
+        const core = new Contract(release.address, abi, provider);
+        assert.equal(await limited(core.version()), release.versionId, "Pulse Core version differs from the release");
+        const sample = { k: 2160n * 10n ** 18n, genesisPrice: 10n ** 18n, genesisFloor: 2n * 10n ** 17n, pts: 66666666666666n };
+        await limited(core.initialize(sample, BigInt(Math.floor(Date.now() / 1000))));
+        connections.push({ provider, core });
+      } catch {
+        provider.destroy();
+      }
+    }
+    assert(connections.length > 0, "No verified Sepolia RPC answered the Pulse Core calculation");
+  }
   let activeConnection = 0;
   let rateWindowStart = Date.now();
   let callCount = 0;
@@ -110,6 +117,7 @@ async function main() {
   }
 
   async function calculate(method, args) {
+    await ensureConnections();
     let lastError;
     for (let attempt = 0; attempt < connections.length; attempt++) {
       const index = (activeConnection + attempt) % connections.length;
@@ -128,6 +136,9 @@ async function main() {
   const server = createServer(async (req, res) => {
     try {
       if (req.method === "GET" && req.url === "/api/status") {
+        if (!admitCall(req)) return reply(res, 429, JSON.stringify({ error: "Too many calculations. Wait a moment and try again." }));
+        try { await ensureConnections(); }
+        finally { activeCalls--; }
         return reply(res, 200, JSON.stringify({
           network: release.network,
           chainId: release.chainId,
@@ -162,8 +173,8 @@ async function main() {
         }
       }
       const file = files.get(req.url);
-      if (req.method === "GET" && file) {
-        return reply(res, 200, readFileSync(new URL(file[0], import.meta.url)), file[1]);
+      if (["GET", "HEAD"].includes(req.method) && file) {
+        return reply(res, 200, req.method === "HEAD" ? "" : generated.get(file[0]) ?? readFileSync(new URL(file[0], import.meta.url)), file[1]);
       }
       reply(res, 404, JSON.stringify({ error: "Page not found" }));
     } catch (error) {
@@ -173,7 +184,7 @@ async function main() {
         error?.message === "Missing curve settings" || error?.message === "Missing curve state" ||
         error?.message === "Request is too large" || error?.message === "Unknown calculation"
           ? error.message : "Sepolia calculation failed";
-      reply(res, 400, JSON.stringify({ error: message }));
+      reply(res, message === "Sepolia calculation failed" && !(error instanceof SyntaxError) ? 503 : 400, JSON.stringify({ error: message }));
     }
   });
   const port = Number(process.env.PORT ?? process.env.PULSE_PLAYGROUND_PORT ?? 4173);
@@ -181,7 +192,7 @@ async function main() {
   assert(Number.isInteger(port) && port > 0 && port < 65536, "Invalid site port");
   server.listen(port, host, () => {
     console.log(`Pulse site listening on ${host}:${port}`);
-    console.log(`Verified ${release.network} Core ${release.address}`);
+    console.log("Public documents are ready; Sepolia identity is checked when the gateway is requested.");
   });
   server.on("close", () => connections.forEach(({ provider }) => provider.destroy()));
 }
