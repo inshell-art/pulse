@@ -12,12 +12,29 @@ async function main() {
   const deployment = JSON.parse(raw);
 
   const conn = await hre.network.connect();
-  const { ethers } = conn;
+  const { ethers, provider } = conn;
+
+  // Timestamp controls belong only to this local-devnet rehearsal.
+  const networkInfo = await ethers.provider.getNetwork();
+  if (conn.networkName !== "localhost" || networkInfo.chainId !== 31337n) {
+    throw new Error("Smoke requires the localhost devnet (chain 31337)");
+  }
 
   const [, buyer] = await ethers.getSigners();
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
   const adapter = await ethers.getContractAt("StubAdapter", deployment.contracts.stubAdapter);
 
+  const openTime = await auction.openTime();
+  const latest = await provider.send("eth_getBlockByNumber", ["latest", false]);
+  if (BigInt(latest.timestamp) < openTime) {
+    await provider.send("evm_setNextBlockTimestamp", [Number(openTime)]);
+    // Mine before quoting/estimating: a pending timestamp alone is not a
+    // guarantee that every provider estimates against an open block.
+    await provider.send("evm_mine", []);
+  }
+  if (!(await auction.curveActive())) throw new Error("Devnet did not reach openTime");
+  const epochBefore = await auction.epochIndex();
+  const nextIdBefore = await adapter.peekNext();
   const quotedAsk = await auction.getCurrentPrice();
   const treasuryBefore = await ethers.provider.getBalance(deployment.treasury);
 
@@ -39,6 +56,10 @@ async function main() {
   const epochIndex = await auction.epochIndex();
   const nextId = await adapter.peekNext();
   const treasuryDelta = treasuryAfter - treasuryBefore;
+  if (!isOpen || treasuryDelta !== salePrice || salePrice > quotedAsk ||
+      epochIndex !== epochBefore + 1n || nextId !== nextIdBefore + 1n) {
+    throw new Error("Smoke settlement/state checks failed");
+  }
 
   const summary = {
     deployFile,
