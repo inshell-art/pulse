@@ -4,7 +4,7 @@ This is the first-party Pulse website. It explains the decentralized automatic a
 
 Both pages follow the system light/dark preference automatically, including chart colors and form controls. No theme preference is stored.
 
-The public site is **https://pulse.inshell.art**, served by the Cloudflare Worker `pulse-site`. First published on 2026-09-26, with HTTPS routes and read-only Sepolia Core calculations verified. Latest tagged website release: [`pulse-site-v1.0.2`](https://github.com/inshell-art/pulse/tree/pulse-site-v1.0.2), commit `32adfe39e1bf775f387ddab698780f256ed0cc81`. The October 16 static review confirmed index r7 is already published; the pending Issues/staging configuration is separate. Local preview remains available for development.
+The public site is **https://pulse.inshell.art**, served by the Cloudflare Worker `pulse-site`. First published on 2026-09-26, with HTTPS routes and read-only Sepolia Core calculations verified. Latest tagged website release: [`pulse-site-v1.0.2`](https://github.com/inshell-art/pulse/tree/pulse-site-v1.0.2), commit `32adfe39e1bf775f387ddab698780f256ed0cc81`. The October 16 static review confirmed index r7 is already published; the pending Issues configuration is separate. Local preview remains available for development.
 
 The narrative separates the proposition (waiting drops, buying pumps), its mechanisms (Dutch auction decay and Price–Time Scale), and Core V1's practical floor policy (next floor equals previous sale price). A dedicated **Pulse Core implementation** section follows the lab, before the Core V1 use cases. It explains the floor ratchet, its simplicity and intended constraint on further issuance, and the separation between Core's calculations and application-owned state. The ratchet is a practical choice, not a requirement of the broader proposition, a fixed supply cap, or a guarantee that sales eventually stop. The waiting-time convention and V1-specific mathematics sit in a collapsed disclosure here. The Sepolia-call and rounding footnotes also live here, linked from the lab’s calculation readouts. Core V1 attribution, network verification status, the explorer link, and RPC details are grouped here too. The lab keeps the experiment, controls, results, a brief privacy note, and plain-language notices for pending calculations, local previews, or service failures. The lab demonstrates this released V1 policy.
 
@@ -97,7 +97,7 @@ Run `python3 evm/playground/smoke-public-access.py https://pulse.inshell.art` to
 
 On 2026-09-27, the session's separate web-reading service still returned opaque inaccessible-URL errors for Pulse and the parent Inshell knowledge index. Default HTTP requests and diagnostic requests carrying ChatGPT-User, Claude-User, and Perplexity-User headers received HTTP 200 with the expected index. These header tests do not prove requests from those providers' infrastructure work. Cloudflare's Pulse-filtered sampled security events showed no corresponding new block, and AI Crawl Control showed ChatGPT-User and OAI-SearchBot allowed. The sampled records cannot prove a request never reached Cloudflare. A temporary Worker trace could not connect (`ECONNRESET`), so it supplied no additional evidence. No broader security exception was applied. The reader-service failure remains unconfirmed; the prompt's alternate HTTP fetch supports agents that have that capability, but does not repair or establish compatibility with every browsing service.
 
-The Cloudflare Worker serves the allowlisted browser assets, public documentation, and a read-only Sepolia gateway. For a separately authorized production publication, from `evm/playground/`, run `npx wrangler@4.147.0 deploy --env="" --dry-run` to build, then `npx wrangler@4.147.0 deploy --env=""` to publish. The default environment binds only `pulse.inshell.art` and disables the workers.dev and preview addresses. Use the existing Cloudflare account with Worker deployment and custom-domain/zone permissions, supplied through the standard `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` environment variables. Keep credentials outside this repository. No signer, database, KV namespace, or paid-plan change is needed.
+The Cloudflare Worker serves the allowlisted browser assets, public documentation, and a read-only Sepolia gateway. The default environment binds only `pulse.inshell.art` and disables the workers.dev and preview addresses. Updates to the existing Worker use the version upload/deploy flow below, with `--env=""` explicitly selecting that default target. Use the existing Cloudflare account and an authorized Worker deployment credential, supplied through the standard `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` environment variables. Keep credentials outside this repository. No signer, database, KV namespace, or paid-plan change is needed.
 
 The Worker uses public Sepolia RPC endpoints with failover, verifies the chain, released runtime hash and version before calculations, and refreshes that verification every five minutes per isolate. Only `initialize`, `quote`, and `advance` calls to the pinned Core address are accepted. Inputs have byte-size and ABI-width bounds; upstream calls have timeouts. Rate and concurrency limits apply per isolate, not as an account-wide quota. The application does not persist calculation requests. The local candidate enables Cloudflare Issues only; Workers Logs and Traces remain disabled. Cloudflare and RPC providers still handle network requests. This candidate has not been deployed, so live issue collection and alert delivery are not yet qualified.
 
@@ -105,19 +105,20 @@ Run `node --test evm/playground/worker.test.js` from the repository root for gat
 
 The initial publication used the Worker custom-domain API after Wrangler uploaded the site: the deployment credential permitted custom domains but not the zone's Worker-route listing. The domain connection was checked for conflicts and added without replacing existing DNS records or services. For separately authorized code and asset updates on that existing binding, use `npx wrangler@4.147.0 versions upload --env="" --tag <reviewed-candidate-tag>`, then `npx wrangler@4.147.0 versions deploy <uploaded-version-id>@100% --env="" --yes`. Replace the tag placeholder with the reviewed candidate's identifier, record the returned version ID, and deploy that exact version; this flow leaves the existing domain binding in place. A full `wrangler deploy` also needs access to the zone's Worker routes.
 
-### Pending Issues and staging candidate (prepared October 12; extended October 16)
+### Pending Issues configuration (prepared October 12; revised October 21)
 
-Local preparation is authorized; staging and production deployment remain pending.
+Production deployment remains pending. The separate staging proposal was
+withdrawn on October 21: this monitoring-only change updates the existing
+`pulse-site` Worker and requires no new Worker, hostname or domain connection.
 `wrangler.jsonc` enables `observability.issues.enabled` while keeping the default
 observability switch, Logs and Traces off. Use Wrangler 4.147.0 for this candidate;
 the old 4.94.0 commands do not support the Issues flag. Issues requires Wrangler
 4.134.0 or newer ([provider documentation](https://developers.cloudflare.com/workers/observability/issues/)).
 The Issues change does not alter application, Core, RPC, assets or alert rules.
 The October 16 candidate also included the local-devnet smoke timing fix, now
-committed separately at `21854bd`. The remaining candidate covers Issues/staging
+committed separately at `21854bd`. The pending release covers Issues
 configuration and this runbook; the default production domain remains unchanged.
-Neither the Issues change nor staging configuration has been deployed by this
-preparation.
+The Issues change has not been deployed by this preparation.
 
 Reuse Inshell's existing enabled account-level **Inshell ops - Worker runtime
 issues** rule (`aecd0b3941254c1c856524105b845790`) and its current this.inshell/private
@@ -128,82 +129,60 @@ it does not backfill historical traffic. Routine successful traffic alone cannot
 qualify real issue detection or delivery. Do not generate a production failure or
 send a notification test without separate authorization.
 
-Before a later release, record the capacity/access/destination/rollback preflight,
-review the exact candidate, and follow candidate → check → staging → check →
-production approval. The default config targets `pulse.inshell.art`; it is not a
-staging destination. Local main's r7 static content is already published, as the
-October 16 comparison established. Freeze the exact candidate source/configuration
-and verify its public assets against that baseline; this batch requires no new
-public content. Record the actual staged/deployed source and Worker version.
+Before a later release, review the exact candidate and the existing Worker's
+capacity, deployment access, serving version and observability settings. Follow
+local checks → candidate review → production approval → update → verification.
+Local main's r7 static content is already published, as the October 16 comparison
+established. Freeze the exact candidate source/configuration and verify its public
+assets against that baseline; this batch requires no new public content. Record
+the actual uploaded/deployed source and Worker version.
 Preserve the existing domain/security rules and Core identity. Gallery's scoped
 Wrangler profile is not an Inshell/Pulse deployment credential.
 
 After an authorized rollout, read back Issues enabled with Logs/Traces disabled,
 confirm the existing account rule and recipients remain intact, and verify public
-pages/docs plus the relevant read-only gateway checks. Track saved collection,
+pages/docs. Live gateway checks require separate authorization. Track saved collection,
 actual issue detection and notification receipt separately. Keep the currently
 serving version as rollback and read its identity before release; a code rollback
-may affect observability settings, so verify those separately. For local rollback,
-restore this patch's original `observability: { "enabled": false }` and README.
+may affect observability settings, so verify those separately. A source rollback
+should revert only the monitoring change through review.
 No new subscription, credentials, signer or deployment is authorized by this note.
 
-### Isolated staging and recovery (not provisioned)
-
-`env.staging` proposes Worker `pulse-site-staging` at
-`pulse-staging.inshell.art`, in the existing Inshell/Pulse account. Both
-`workers_dev` and `preview_urls` remain false. Routes, ASSETS and observability
-are explicit in that environment; commands must select `--env staging`.
-No availability, DNS ownership, Access policy or live binding is claimed by
-adding this configuration. Provisioning and deployment remain pending approval.
+### Release checks and recovery
 
 Build from an isolated candidate checkout with the catalog's pinned Git objects.
 The build replaces `output/pulse-site` inside that checkout; do not build two
-candidates concurrently in one checkout. Staging gets its own uploaded assets
-and Worker versions, while using the same released Core identity and existing
-public Sepolia endpoints. It shares account/RPC allowances, not production
-routing or mutable auction state. No database, signer or new secret is needed.
+candidates concurrently in one checkout. Run the existing knowledge/Worker suites,
+verify 24-file asset parity and scan the built assets for secrets. This configuration
+change does not require a new Core deployment or browser layout qualification.
 
 Local-only preparation, from `evm/playground/`:
 
 ```sh
 npx wrangler@4.147.0 deploy --env="" --dry-run --no-autoconfig
-npx wrangler@4.147.0 deploy --env staging --dry-run --no-autoconfig
 ```
 
-Before authorized provisioning, verify account/credential scope, Worker and
-hostname conflicts, current capacity, applicable Access/security rules, exact
-resolved configuration and rollback. Preserve `pulse.inshell.art`, its BIC
-exception, all existing protection and alert recipients. The production BIC
-exception does not cover the staging hostname. If access is blocked, stop and
-report it; do not broaden the exception or enable alternate public addresses.
-
-The first authorized staging rollout should establish a checked r7 baseline
-with the recorded pre-change observability settings, then the reviewed Issues
-candidate, retaining both staging version IDs. Use the established custom-domain
-provisioning path only after its permission preflight. Subsequent version uploads
-and deployments must explicitly select the intended Worker/environment and
-returned version ID. A version upload alone does not prove saved Issues state.
-Production promotion is separately approved; stage version IDs are not portable
-production deployment IDs.
-
-With multiple environments configured, always select a target explicitly:
-`--env staging` for staging and `--env=""` for the default production Worker,
-including version upload/deploy and rollback commands. The production examples
-above describe that default target; they are not staging instructions.
+Before an authorized update, record the actual serving version and saved
+observability settings for `pulse-site`. Preserve `pulse.inshell.art`, its existing
+binding, BIC exception, all other protection and alert recipients. After approval,
+use the existing-binding version upload/deploy commands above and retain the
+returned candidate version ID. A version upload alone does not prove saved Issues
+state. Use `--env=""` for all version upload/deploy and recovery commands.
 
 | Recovery layer | Required action and verification |
 | --- | --- |
-| Source | Retain the reviewed base and original pending patch; revert only the batch delta through review, preserving subsequent unrelated changes. |
+| Source | Retain the reviewed base and candidate; revert only the monitoring delta through review, preserving subsequent unrelated changes. |
 | Worker/code/assets | Read and retain the actual serving version before promotion. Restore that explicit same-Worker version, then verify serving identity and public asset hashes. |
 | Observability | Read back Issues, Logs and Traces after promotion or rollback. If needed, restore the recorded pre-change settings explicitly; do not assume a code rollback alone restores collection. Keep Logs/Traces off. |
 | Zone and account settings | Worker rollback does not restore domain/DNS/Access/BIC/security rules or notification policies. These are unchanged by this batch; verify them independently and do not alter them as an incidental recovery step. |
 
-Later acceptance uses Pulse's existing knowledge/Worker suites, 24-file build
-parity, leak scan, public-document download/replay, separately authorized Sepolia
-smoke and desktop/mobile chart checks. Verify staging-only routing, saved Issues
-on/Logs+Traces off, and unchanged production/alert settings. Actual issue detection
-and notification receipt remain separate natural-event evidence; no failure
-injection, notification test or THOUGHT Agent canary is required by this candidate.
+After release, verify the serving version, saved Issues on/Logs+Traces off,
+public-document download/replay and public asset parity. Cloudflare's managed
+`robots.txt` prefix can differ from the built file; verify that its original
+content remains intact. Keep the existing domain/security rules and account alert
+settings unchanged. Actual issue detection and notification receipt remain
+separate natural-event evidence; no failure injection, notification test or
+THOUGHT Agent canary is required by this candidate.
 
 ### Local-devnet CI timing repair
 
@@ -232,8 +211,9 @@ the pre-open smoke path, the already-open smoke path and all five cascade steps
 with every recorded check true. Wrangler 4.147.0 resolved both configurations
 and passed local-only dry runs; Issues is true and Logs/Traces false in each.
 All 24 built public files match the October 16 recorded r7 hashes. These are
-local results, not a new GitHub Actions result, staging qualification, live
-Sepolia/browser verification or proof of issue collection/alert delivery.
+local results, not a new GitHub Actions result, live Sepolia/browser verification
+or proof of issue collection/alert delivery. The staging configuration checked
+then was withdrawn on October 21; only the default production target remains.
 
 ## Publish on a Node host
 
