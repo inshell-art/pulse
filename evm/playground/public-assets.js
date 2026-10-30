@@ -5,7 +5,7 @@ export const publicAssets = new Map([
   ["/", ["index.html", "text/html; charset=utf-8", "/index.html"]],
   ["/projects", ["projects.html", "text/html; charset=utf-8", "/projects.html"]],
   ["/projects/", ["projects.html", "text/html; charset=utf-8", "/projects.html"]],
-  ...["app.js", "projects.js", "agent.js"].map(name => [`/${name}`, [name, "text/javascript; charset=utf-8", `/${name}`]]),
+  ...["app.js", "projects.js", "agent.js", "analytics.js", "analytics-core.js"].map(name => [`/${name}`, [name, "text/javascript; charset=utf-8", `/${name}`]]),
   ["/styles.css", ["styles.css", "text/css; charset=utf-8", "/styles.css"]],
   ["/favicon.svg", ["favicon.svg", "image/svg+xml", "/favicon.svg"]],
   ["/robots.txt", ["robots.txt", "text/plain; charset=utf-8", "/robots.txt"]],
