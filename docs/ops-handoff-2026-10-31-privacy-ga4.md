@@ -3,7 +3,8 @@
 From OPS (`/Users/bigu/Projects/inshell-ops`). Any session, Codex or Claude, can
 take this. Keep progress in this file, not only in a conversation.
 
-**Status:** open. **Taken by:** none yet. Before you start, replace "none yet"
+**Status:** in progress. **Taken by:** Claude Code, session pulse-privacy-ga4,
+November 1, 2026, 07:01 China time. Before you start, replace "none yet"
 with your agent and session and the China time; when you stop, write the
 outcome at the end of this file.
 
