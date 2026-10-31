@@ -3,7 +3,7 @@
 From OPS (`/Users/bigu/Projects/inshell-ops`). Any session, Codex or Claude, can
 take this. Keep progress in this file, not only in a conversation.
 
-**Status:** done; item 4 awaits the operator's decision. **Taken by:** Claude Code (Opus 5.5), side session of
+**Status:** done; the operator declined item 4. **Taken by:** Claude Code (Opus 5.5), side session of
 OPS session `local_027a84cf`, worktree `ga4-followup-f0abaa`, branch
 `claude/ga4-followup-f0abaa`, October 31, 2026, 09:23 China. Before you start, replace "none yet"
 with your agent and session and the China time; when you stop, write the
@@ -120,6 +120,8 @@ Claude Code, October 31, 2026, about 09:35 China.
   beside Cloudflare and RPC providers? Yes means a new digest, a new index
   revision after `2026-09-27-r7`, and a normal release: staging, then production
   with the operator's yes and a freshly approved deploy credential.
+  **Operator's answer, October 31: no.** Leave `docs/playground.md` and the
+  index unchanged; the on-page consent notice covers analytics.
 - **Seen, outside this handoff:** CI's "Run website and gateway tests" step
   (`.github/workflows/evm-local-devnet-checks.yml`) runs only `knowledge.test.js`
   and `worker.test.js`, so the 25 analytics tests do not run in CI.
