@@ -113,3 +113,22 @@ index `2026-11-01-r8`); 37 of 37 site tests, build (26 files), both dry runs and
 gitleaks pass. Preflight written to
 `/Users/bigu/Projects/inshell-ops/docs/ops-pulse-privacy-text-release-2026-11-01.md`.
 Waiting for the operator to run the staging deploy.
+
+**First staging attempt, November 1, 07:07 China: refused, nothing changed.**
+`CLOUDFLARE_API_TOKEN` was not set in the shell that ran the command (this
+chat's `!` shell), so Wrangler fell back to its saved OAuth login for the
+Gallery account (`a54e5847…`). All three calls returned `Authentication error
+[code: 10000]`; nothing was read or deployed. Log kept as
+`output/privacy-staging-deploy-attempt1.log` in the worktree (not committed).
+
+**Guarded command, at the operator's request (via OPS).** The staging deploy now
+runs from `output/privacy-staging-deploy.sh` in the worktree (not committed;
+`output/` is ignored). In order, it stops unless:
+1. `CLOUDFLARE_API_TOKEN` is set (checked without printing it);
+2. `evm/playground` is byte-identical to candidate `6e24931`;
+3. `wrangler whoami --json` reports `User API Token` or `Account API Token`, not
+   `OAuth Token`, and lists account `7fc68967a9445609a0788d8c94e45de0`.
+Only then does it read both serving versions and deploy staging, writing
+`output/privacy-staging-deploy.log`. Checked locally: it stops with no token,
+and the identity check rejects an OAuth login or a missing Inshell account. The
+production command will carry the same guard.
