@@ -3,7 +3,7 @@
 From OPS (`/Users/bigu/Projects/inshell-ops`). Any session, Codex or Claude, can
 take this. Keep progress in this file, not only in a conversation.
 
-**Status:** in progress. **Taken by:** Claude Code, session pulse-privacy-ga4,
+**Status:** staged and checked; production waits for the operator's yes (see Outcome). **Taken by:** Claude Code, session pulse-privacy-ga4,
 November 1, 2026, 07:01 China time. Before you start, replace "none yet"
 with your agent and session and the China time; when you stop, write the
 outcome at the end of this file.
@@ -132,3 +132,77 @@ Only then does it read both serving versions and deploy staging, writing
 `output/privacy-staging-deploy.log`. Checked locally: it stops with no token,
 and the identity check rejects an OAuth login or a missing Inshell account. The
 production command will carry the same guard.
+
+**Outcome, November 1, ~07:35 China (Claude Code, pulse-privacy-ga4). Stopped
+before production; it needs the operator's separate yes.**
+
+- **Pull request:** this branch, `claude/privacy-ga4-release-0d0bc7`, into
+  `main` (link below once opened). Not merged.
+- **What changed:**
+  - `evm/playground/docs/playground.md`: a new paragraph after the Cloudflare
+    and RPC sentence (unchanged). Four short sentences carry the dialog's facts:
+    optional and off until allowed; cookies; page categories (Home or
+    Projects), approximate country, browser visits and engagement time; Google
+    receives network and browser information, including the IP address; no
+    calculator inputs, auction values, wallet data, prompts or downloaded
+    documents; advertising and personalization off; change the choice under
+    "Analytics choices" in the page footer.
+  - `evm/playground/docs/agent-index.json`: index `2026-09-27-r7` →
+    `2026-11-01-r8`; playground digest `eeef35c9…` →
+    `b501ee3c58ac90af49c2350f7364ccd3790a32fbe257236069974f7ea1653a07`; its
+    `useFor` adds "privacy, including optional analytics".
+  - No other indexed document carries privacy wording, `agent-prompt.txt`
+    included, so nothing else changed. `site-release` entry left as is (no Git
+    release tag).
+  - `evm/playground/README.md`: the release recorded as staged, beside the
+    October 31 GA4 record.
+- **Candidate:** `6e249312734c6e4dd27ca04db5c786413d0a9010`. Later commits on
+  this branch touch only `docs/` and the README, which are not deployed.
+- **Tests:** 37 of 37 site tests pass (analytics 25, knowledge 7, worker 5),
+  Node 22.16.0. Build: 26 public files. Both dry runs pass (`--env staging`;
+  `--env="" --no-autoconfig`): 176.99 KiB, binding `ASSETS` only. gitleaks: no
+  leaks in the built assets or the docs. The pre-push hook ran the 223 EVM tests,
+  all passing.
+- **Deploy token:** after the refused first attempt, the operator rolled
+  `pulse-worker-deploy-ga4-2026-11` in Cloudflare (~07:20 China) and pasted the
+  new value at a hidden prompt; the value was never seen or recorded. It still
+  lapses November 7. OPS's credential inventory should note the roll.
+- **Staging:** deployed ~07:22 China through the guarded script: token check
+  passed (`User API Token`, Inshell account visible). Worker
+  `pulse-site-staging` now serves version
+  `eb717fa8-f7ae-4dd7-a1d3-9737a66a1054` (tag `privacy-ga4-6e24931`). Cloudflare
+  uploaded exactly 3 changed files (`docs/playground.md`,
+  `docs/documents/playground.json`, `docs/agent-index.json`); 23 were unchanged.
+  Staging rollback: `2a5fcdc2-a540-4e61-bfdc-77b27b9762e0`, read just before.
+- **Staging checks** (direct to Cloudflare's edge, `104.21.6.16`, since the local
+  proxy cannot resolve the host):
+  - asset parity: 26 of 26 files match the build byte for byte (`robots.txt`
+    ends with the built text after Cloudflare's managed prefix). Before the
+    deploy, only the 3 changed files differed;
+  - served index is `2026-11-01-r8`; its playground digest equals the served
+    `docs/playground.md`, and the served download envelope matches its
+    `download.sha256` and carries the same text;
+  - `smoke-site.py`: PASS (14 routes; document digests and HEAD; verified
+    Sepolia identity; initialize/quote/advance/next quote; 3 invalid-request
+    checks);
+  - security headers on `/` (CSP, nosniff, referrer and others) identical to
+    production's;
+  - browser, desktop 1280 and mobile 375: page and chart render, `/api/status`
+    and `/api/call` return 200, no horizontal overflow, zero requests to Google
+    (analytics never loads on staging, as designed);
+  - `smoke-public-access.py` (Python's default user agent) gets 403, Cloudflare
+    error 1010, on staging only. The BIC exception covers only
+    `pulse.inshell.art`, so this is the staging host's zone setting, unchanged
+    by this release; production returns 200. The same download-and-replay logic
+    passes against the identical build in `knowledge.test.js`. Run it on
+    production after release.
+- **Production:** not run. Serving version read at the staging deploy:
+  `65d09b2d-9b8d-4414-8f2d-fdd963281830` (`ga4-consent-f512df7`), the rollback.
+  When approved: the README's `versions upload --env=""` then
+  `versions deploy <id>@100% --env="" --yes`, behind the same token guard; then
+  `smoke-site.py`, `smoke-public-access.py`, asset parity, and Issues on with
+  Logs and Traces off.
+- **Left:** the operator's production yes, the production deploy and checks,
+  then the README's production record and dated provider record. CI still runs
+  only `knowledge.test.js` and `worker.test.js`, so the 25 analytics tests don't
+  run in CI (not changed; needs the operator's ask).
