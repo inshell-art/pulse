@@ -136,8 +136,8 @@ production command will carry the same guard.
 **Outcome, November 1, ~07:35 China (Claude Code, pulse-privacy-ga4). Stopped
 before production; it needs the operator's separate yes.**
 
-- **Pull request:** this branch, `claude/privacy-ga4-release-0d0bc7`, into
-  `main` (link below once opened). Not merged.
+- **Pull request:** [inshell-art/pulse#6](https://github.com/inshell-art/pulse/pull/6),
+  branch `claude/privacy-ga4-release-0d0bc7` into `main`. Not merged.
 - **What changed:**
   - `evm/playground/docs/playground.md`: a new paragraph after the Cloudflare
     and RPC sentence (unchanged). Four short sentences carry the dialog's facts:
