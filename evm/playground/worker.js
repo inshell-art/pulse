@@ -11,7 +11,7 @@ const headers = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'"
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self'; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com; base-uri 'none'; frame-ancestors 'none'"
 };
 const safeErrors = new Set(["Invalid unsigned integer input", "Input exceeds its ABI width", "Missing curve settings", "Missing curve state", "Request is too large", "Unknown calculation", ...errorNames]);
 const json = (value, status = 200) => Response.json(value, { status, headers });

@@ -77,5 +77,7 @@ test("only public asset paths are served, with security headers", async () => {
   const page = await worker.fetch(new Request("https://pulse.inshell.art/projects"), env);
   assert.equal(await page.text(), "/projects.html");
   assert.match(page.headers.get("Content-Security-Policy"), /frame-ancestors 'none'/);
+  // Consent-gated GA4 needs exactly Google's tag and collection hosts; nothing else is added.
+  assert.equal(page.headers.get("Content-Security-Policy"), "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self'; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com; base-uri 'none'; frame-ancestors 'none'");
   assert.equal((await worker.fetch(new Request("https://pulse.inshell.art/server.js"), env)).status, 404);
 });

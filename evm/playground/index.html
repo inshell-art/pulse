@@ -13,6 +13,7 @@
   <script src="/app.js" defer></script>
   <script src="/projects.js" defer></script>
   <script src="/agent.js" defer></script>
+  <script type="module" src="/analytics.js"></script>
   <link rel="alternate" type="application/json" href="/docs/agent-index.json" title="Pulse public knowledge index">
 </head>
 <body>
@@ -171,7 +172,9 @@
   </main>
 
   <footer class="site-footer reading-column">
-    <p>Pulse · <a href="https://github.com/inshell-art/pulse" target="_blank" rel="noopener noreferrer">Open source</a> · <a href="https://github.com/inshell-art/pulse/releases/tag/pulse-core-v1.0.0" target="_blank" rel="noopener noreferrer">Core V1</a></p>
+    <p>Pulse · <a href="https://github.com/inshell-art/pulse" target="_blank" rel="noopener noreferrer">Open source</a> · <a href="https://github.com/inshell-art/pulse/releases/tag/pulse-core-v1.0.0" target="_blank" rel="noopener noreferrer">Core V1</a> · <button class="analytics-open" type="button" data-analytics-action="open" aria-haspopup="dialog" aria-controls="analytics-settings" hidden>Analytics choices</button></p>
   </footer>
+  <aside id="analytics-notice" aria-label="Optional analytics" hidden><p>Allow Google Analytics to measure page categories, approximate country, visits and engagement? It uses cookies. Your choice is optional; the site and the lab work either way.</p><div class="analytics-actions"><button type="button" data-analytics-action="allow">Allow analytics</button><button type="button" data-analytics-action="reject">Reject analytics</button></div><button class="analytics-open" type="button" data-analytics-action="open">Details and choices</button></aside>
+  <dialog id="analytics-settings" aria-labelledby="analytics-title"><h2 id="analytics-title" tabindex="-1">Analytics choices</h2><p id="analytics-status" role="status" aria-live="polite">Analytics is off until this page verifies your permission.</p><p>If allowed, Google Analytics measures broad page categories (Home or Projects), approximate country, browser visits and engagement time. Google receives network and browser information, including your IP address. No calculator inputs, auction values, wallet data, prompts or downloaded documents are included. Advertising and personalization are off.</p><div class="analytics-actions"><button type="button" data-analytics-action="allow">Allow analytics</button><button type="button" data-analytics-action="reject">Reject analytics</button></div><details><summary>Cookies and limits</summary><p>Your choice is saved in this browser for 90 days. If allowed, analytics cookies distinguish browsers and sessions. The client cookie is configured for up to 90 days from creation; session cookies may renew for up to 90 days after activity or a later visit. Clearing site storage removes the saved choice and browser exclusion.</p><p>Reject analytics to withdraw permission. This stops further measurement on this page and removes this site’s analytics cookies; it cannot recall information already sent. Excluding this browser also prevents future measurement here until you remove the exclusion. Removing exclusion does not grant permission.</p><p>Reports cover consenting browsers, not all visitors or unique people. Country can reflect a VPN or network location; engagement time is not proof of attention. See <a href="https://policies.google.com/privacy" rel="noreferrer">Google’s privacy policy</a>.</p></details><div class="analytics-secondary"><button type="button" data-analytics-action="exclude">Exclude this browser</button><button type="button" data-analytics-action="include" hidden>Remove browser exclusion</button><button type="button" data-analytics-action="close">Close</button></div></dialog>
 </body>
 </html>

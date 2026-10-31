@@ -224,3 +224,21 @@ input[type="range"] { display: block; width: 100%; height: 28px; margin: 10px 0 
   .directory-page h1 { font-size: 39px; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Optional analytics (consent first). Ported from AgentArt.work. */
+.analytics-open { padding: 0; border: 0; color: inherit; background: transparent; font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+.analytics-open:hover { text-decoration: none; }
+#analytics-settings, #analytics-notice { color: var(--ink); background: var(--panel); border: 1px solid var(--line); font: 14px/1.6 var(--sans); padding: 20px; }
+#analytics-settings { width: min(560px, calc(100% - 32px)); max-height: 85vh; overflow: auto; margin: auto; }
+#analytics-settings::backdrop { background: rgb(0 0 0 / .35); }
+#analytics-settings h2 { margin: 0 0 16px; font: 700 18px/1.5 var(--sans); }
+#analytics-settings p, #analytics-notice p { margin: 0 0 16px; }
+#analytics-settings summary { cursor: pointer; margin-bottom: 12px; }
+#analytics-status { min-height: 3.2em; }
+.analytics-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-block: 16px; }
+.analytics-actions button, .analytics-secondary button { padding: 7px 10px; border: 1px solid var(--line); border-radius: 0; color: var(--ink); background: var(--paper); font: inherit; cursor: pointer; }
+.analytics-actions button:disabled { opacity: .6; cursor: default; }
+.analytics-secondary { display: flex; flex-wrap: wrap; gap: 12px; }
+#analytics-notice { position: fixed; z-index: 30; right: 16px; bottom: 16px; width: min(460px, calc(100% - 32px)); max-height: 80vh; overflow: auto; }
+#analytics-notice[hidden], [data-analytics-action][hidden] { display: none; }
+@media print { #analytics-settings, #analytics-notice, .analytics-open { display: none; } }

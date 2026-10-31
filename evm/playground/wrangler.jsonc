@@ -18,5 +18,28 @@
     "logs": { "enabled": false },
     "traces": { "enabled": false }
   },
-  "build": { "command": "node build-site.js" }
+  "build": { "command": "node build-site.js" },
+  // Staging: same Worker code and assets on its own host. Analytics never
+  // loads here; the site's consent module accepts only https://pulse.inshell.art.
+  "env": {
+    "staging": {
+      "name": "pulse-site-staging",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "pulse-staging.inshell.art", "custom_domain": true }],
+      "assets": {
+        "directory": "../../output/pulse-site",
+        "binding": "ASSETS",
+        "run_worker_first": true,
+        "html_handling": "none",
+        "not_found_handling": "none"
+      },
+      "observability": {
+        "enabled": false,
+        "issues": { "enabled": true },
+        "logs": { "enabled": false },
+        "traces": { "enabled": false }
+      }
+    }
+  }
 }
