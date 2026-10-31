@@ -106,3 +106,10 @@ Write here when you stop:
 - test results;
 - staging version and checks;
 - the production version and its rollback, or why it stopped before production.
+
+**Progress, November 1, ~07:20 China (Claude Code, pulse-privacy-ga4):**
+candidate `6e249312734c6e4dd27ca04db5c786413d0a9010` is ready (text, digest,
+index `2026-11-01-r8`); 37 of 37 site tests, build (26 files), both dry runs and
+gitleaks pass. Preflight written to
+`/Users/bigu/Projects/inshell-ops/docs/ops-pulse-privacy-text-release-2026-11-01.md`.
+Waiting for the operator to run the staging deploy.
