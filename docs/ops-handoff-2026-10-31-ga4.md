@@ -3,7 +3,7 @@
 From OPS (`/Users/bigu/Projects/inshell-ops`). Any session, Codex or Claude, can
 take this. Keep progress in this file, not only in a conversation.
 
-**Status:** in progress. **Taken by:** Claude Code (Opus 5.5), side session of
+**Status:** done; item 4 awaits the operator's decision. **Taken by:** Claude Code (Opus 5.5), side session of
 OPS session `local_027a84cf`, worktree `ga4-followup-f0abaa`, branch
 `claude/ga4-followup-f0abaa`, October 31, 2026, 09:23 China. Before you start, replace "none yet"
 with your agent and session and the China time; when you stop, write the
@@ -79,3 +79,47 @@ another session.
 
 Write here when you stop: the pull request, test results, what changed in the
 README, and the question raised on item 4.
+
+Claude Code, October 31, 2026, about 09:35 China.
+
+- **Pull request:** [inshell-art/pulse#4](https://github.com/inshell-art/pulse/pull/4),
+  branch `claude/ga4-followup-f0abaa` from this handoff commit on `origin/main`
+  `d1ba783`. Docs only.
+- **Item 1, site tests:** 37 of 37 pass on `main` `d1ba783` content
+  (`analytics.test.js` 25, `knowledge.test.js` 7, `worker.test.js` 5), Node
+  22.16.0. The pre-commit compile and the pre-push `npm test` (223 passing) also
+  ran. A local build produces 26 public files.
+- **Item 2, README** (`evm/playground/README.md`):
+  - Intro: "the pending Issues configuration is separate" now says the October 31
+    release added optional analytics and shipped Issues.
+  - New October 31 release paragraph: production `65d09b2d` (`ga4-consent-f512df7`),
+    staging `2a5fcdc2` checked first, smoke check passed, 25 of 26 files
+    byte-identical plus `robots.txt` with Cloudflare's managed prefix, no new Git
+    release tag.
+  - Dated provider record is now October 31: serving `65d09b2d`, rollback
+    `77aae848`. The October 11 record is kept as superseded.
+  - Worker paragraph (was line 102): Issues enabled in production, Logs and
+    Traces off; Google receives page views only after consent. "This candidate
+    has not been deployed" removed; issue detection and alert delivery are still
+    stated as not qualified.
+  - "Pending Issues configuration" renamed "Issues configuration (prepared
+    October 12; revised October 21; live October 31)". It records the release,
+    the before-and-after read-back, the October 21 staging withdrawal as history
+    and the October 31 staging Worker. The batch's pre-release guidance became
+    guidance for later releases (now including staging).
+  - Release checks: 26-file asset parity, not 24. The October 16 validation note
+    points to the current staging target instead of "only the default production
+    target remains".
+  - The site README is not an indexed document, so no digest or index revision
+    changed.
+- **Item 3:** no session, process or recent edit was using
+  `/Users/bigu/Projects/pulse`, and its tree was clean. Its local `main` was
+  fast-forwarded from `8e3fdee` to `d1ba783` (level with GitHub).
+- **Item 4, raised, not implemented:** should `docs/playground.md` (index entry
+  "Site, simulation, directory, and privacy") name the optional Google Analytics
+  beside Cloudflare and RPC providers? Yes means a new digest, a new index
+  revision after `2026-09-27-r7`, and a normal release: staging, then production
+  with the operator's yes and a freshly approved deploy credential.
+- **Seen, outside this handoff:** CI's "Run website and gateway tests" step
+  (`.github/workflows/evm-local-devnet-checks.yml`) runs only `knowledge.test.js`
+  and `worker.test.js`, so the 25 analytics tests do not run in CI.
