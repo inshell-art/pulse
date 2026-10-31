@@ -1,6 +1,6 @@
 {
   "schema": "pulse.public-knowledge-index/v1",
-  "version": "2026-09-27-r7",
+  "version": "2026-11-01-r8",
   "language": "en",
   "purpose": "Public, read-only discovery for visitors using their own agents.",
   "publication": {
@@ -69,8 +69,8 @@
       "title": "Site, simulation, directory, and privacy",
       "url": "/docs/playground.md",
       "authority": "site-documentation",
-      "useFor": "What visitors can do; hypothetical purchases; local scenarios; the limits of the directory and gateway status.",
-      "sha256": "eeef35c9c1df8b329999cb9853faeeeb7ba967527934ae916653ebc0e922bd9b",
+      "useFor": "What visitors can do; hypothetical purchases; local scenarios; privacy, including optional analytics; the limits of the directory and gateway status.",
+      "sha256": "b501ee3c58ac90af49c2350f7364ccd3790a32fbe257236069974f7ea1653a07",
       "assets": []
     },
     {

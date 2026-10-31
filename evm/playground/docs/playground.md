@@ -8,6 +8,8 @@ The playground makes hypothetical calculations using the released Pulse Core V1 
 
 The browser draws previews and calls the site's read-only gateway for Core calculations. Individual calculation inputs reach an RPC provider. The site does not persist scenario history. Cloudflare and RPC providers still process network requests.
 
+Google Analytics is optional and stays off until the visitor allows it. If allowed, it uses cookies to measure broad page categories (Home or Projects), approximate country, browser visits and engagement time, and Google receives network and browser information, including the IP address. No calculator inputs, auction values, wallet data, prompts or downloaded documents are included; advertising and personalization are off. The visitor can change the choice under "Analytics choices" in the page footer.
+
 The interactive lab presents the scenario, controls, results, and local-preview or service-failure notices. The following Pulse Core implementation section holds the Core V1/Sepolia explanation, verification status, explorer link, and RPC details. The lab links to that section and keeps a brief privacy notice beside its results.
 
 The controls are Genesis price, Genesis floor, Initial time to halfway, and Price–Time Scale (PTS). The first, second, and fourth correspond to Core configuration fields. Initial time to halfway is a convenience control used to derive k. Changing a rule starts a new hypothetical scenario; it does not change a deployed auction's rules.
