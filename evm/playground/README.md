@@ -103,7 +103,7 @@ On 2026-09-27, the session's separate web-reading service still returned opaque 
 
 The Cloudflare Worker serves the allowlisted browser assets, public documentation, and a read-only Sepolia gateway. The default environment binds only `pulse.inshell.art` and disables the workers.dev and preview addresses. Updates to the existing Worker use the version upload/deploy flow below, with `--env=""` explicitly selecting that default target. Use the existing Cloudflare account and an authorized Worker deployment credential, supplied through the standard `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` environment variables. Keep credentials outside this repository. No signer, database, KV namespace, or paid-plan change is needed.
 
-The Worker uses public Sepolia RPC endpoints with failover, verifies the chain, released runtime hash and version before calculations, and refreshes that verification every five minutes per isolate. Only `initialize`, `quote`, and `advance` calls to the pinned Core address are accepted. Inputs have byte-size and ABI-width bounds; upstream calls have timeouts. Rate and concurrency limits apply per isolate, not as an account-wide quota. The application does not persist calculation requests. Cloudflare Issues is enabled in production; Workers Logs and Traces remain disabled. Cloudflare and RPC providers still handle network requests, and Google receives page views only from visitors who allow [optional analytics](#optional-analytics). Issues collection is saved on, but actual issue detection and alert delivery are not yet qualified.
+The Worker uses public Sepolia RPC endpoints with failover, verifies the chain, released runtime hash and version before calculations, and refreshes that verification every five minutes per isolate. Only `initialize`, `quote`, and `advance` calls to the pinned Core address are accepted. Inputs have byte-size and ABI-width bounds; upstream calls have timeouts. Rate and concurrency limits apply per isolate, not as an account-wide quota. The application does not persist calculation requests. Cloudflare Issues is enabled in production; Workers Logs and Traces remain disabled. Cloudflare and RPC providers still handle network requests. This local candidate replaces the prior optional GA4 installation as described under [Optional statistics](#optional-statistics-local-only-candidate). Issues collection is saved on, but actual issue detection and alert delivery are not yet qualified.
 
 Run `node --test evm/playground/worker.test.js` from the repository root for gateway boundary tests. After deployment, run `python3 evm/playground/smoke-site.py https://pulse.inshell.art` to verify HTTPS routes and actual Sepolia calculations.
 
@@ -232,6 +232,134 @@ The project entries on `/projects` come from [`projects.json`](projects.json) an
 
 The browser stores settings and simulated purchases in its own `localStorage` under `pulse-core-playground/v1`. No scenario history is saved by the server. Each `initialize`, selected `quote`, and `advance` input is forwarded to the Sepolia RPC for a read-only call, so those individual inputs leave the device even though the history stays local. The chart uses the same integer rule locally for smooth scrubbing and checks the selected ask against the deployed contract. No wallet, payment, mint, transaction, or real auction state is involved. “Start again” replaces the saved sequence with a fresh one.
 
-### Optional analytics
+### Optional statistics (local-only candidate)
 
-The site offers optional, consent-first Google Analytics 4 (measurement ID `G-HPR2KD6JEP`, property `561620951`). Nothing loads from Google until the visitor chooses **Allow analytics**; Reject, later withdrawal and **Exclude this browser** are always available from **Analytics choices** in the footer, and the choice lasts 90 days in `localStorage`. Measurement runs only on `https://pulse.inshell.art`: staging, previews, local servers and automated browsers never load Google. Page views use a closed list of two categories (Home and Projects); documents, prompts, API routes, calculator inputs and wallet data are never sent. Advertising signals, Google signals and personalization are off, and a Developer Traffic filter excludes diagnostic visits. The CSP adds only `https://www.googletagmanager.com` for scripts and Google's collection hosts for `connect-src` and `img-src`. `analytics-core.js` is ported from AgentArt.work's consent module; `analytics.test.js` runs its offline fixtures. A staging target, `wrangler deploy --env staging` (Worker `pulse-site-staging` at `pulse-staging.inshell.art`), serves the same code and assets for pre-release checks; analytics never loads there.
+November 1 preparation on `codex/cf-analytics-local-20261101` starts from
+`dbf624fac23c405d53472da43a097157a0e54acb`, the authoritative main containing
+November 1's privacy release. It is separate from the saved October functionality
+batch. No commit, publication, provider collector change or deployment is authorized.
+
+GA4 installation, its cookie/consent panel and Google CSP destinations are removed.
+A quiet **Privacy** disclosure retains the existing `pulse.analytics.excluded.v1`
+boolean. Old consent records, analytics history and cookies are not deleted;
+saved scenarios, authentication/functional storage and Core/gateway behavior are
+unchanged. No new visitor ID, collector endpoint, proxy or reporting credential
+is added to the frontend. Referrer-Policy is `no-referrer`; the optional loader
+also checks the incoming document referrer instead of replacing it with a label.
+
+The single owner-controlled native Cloudflare loader is **OFF in this candidate
+in every environment**, including production. `ANALYTICS_CONFIG` in
+`analytics-core.js` has `enabled: false`, `production: false`, the verified existing root public RUM
+`beaconToken` (`site_token`), and false injection, regional/manual-mode and document-lifecycle gates.
+A reporting API token is not a public beacon token or collection permission. The existing root snippet/public-token and reporting-record pairing was explicitly
+verified read-only on November 2; Pulse subdomain reuse follows the documented root relationship.
+This does not verify receiver acceptance or actual report ingestion. REST `site_tag` is a separate reporting/query identity; tests use
+distinct synthetic values and only `beaconToken` goes into `data-cf-beacon.token`.
+Account reporting API credentials are a third type and stay server-side. Automatic injection is not bypassed or managed by this candidate.
+
+A later separately reviewed configuration needs the exact production origin
+`https://pulse.inshell.art`, an approved 32-hex public `site_token` in `beaconToken` and all qualified
+gates. The extended candidate permits only canonical `/projects/`; Home stays off. Unknown paths, queries
+(including an empty `?`), fragments (including `#`), docs/prompts, APIs, sensitive
+work/handle/wallet/auth flows, previews/local/CI, known automation, unreadable
+exclusion storage and explicitly excluded browsers stay off. Incoming same-origin
+referrers must also be the exact Projects route; Home-to-Projects entries are
+currently excluded. Blank/direct referrers can qualify. External referrers require
+an explicit reviewed origin allowlist and must expose only that origin; the
+current external allowlist is empty. Unknown or sensitive paths are skipped.
+These statistics would cover only part of Projects traffic, not all Pulse visits
+or people. Missing coverage is not reported as zero demand.
+
+#### Projects document lifecycle — local only, November 2
+
+The supported scope is one exact static `/projects/` document with ordinary
+full-document navigation. The current Projects and agent scripts do not mutate
+history or implement a router. `spa: false` is not an immediate-stop API. Excluding
+a measured browser saves only the existing exclusion boolean and reloads that
+page; the next document checks the exclusion before loading a beacon. The closing
+public Projects document may still send a final performance report, including
+after the exclusion action. Removing an exclusion does not start measurement in
+the existing document. Saved scenarios and functional storage stay unchanged.
+
+OPS's November 2 bounded fixture used the pinned unmodified official SDK,
+synthetic inputs and browser-enforced `connect-src none`. Normal Projects-to-Home
+navigation kept the final report location on `/projects/`; Home loaded no SDK.
+Exclusion saved the boolean, reloaded and left the next document excluded without
+a beacon, while the closing Projects document attempted a final report. Every
+upload was blocked. The operator accepted this finite next-document behavior;
+this is not collection activation, a global privacy/legal guarantee or release
+approval. This copy-only continuation runs no additional SDK tests.
+
+The earlier synthetic `history.pushState` private-path final-send **FAIL remains
+real and unsupported**, not waived or relabeled passed. Do not add a History API
+patch, router or navigation redesign for measurement. Script removal and reload
+do not promise cancellation of vendor handlers or a final report. Cross-tab
+exclusion, other native visibility/lifecycle cases, actual referrer negatives,
+trusted region/cache behavior, automatic-injection reconciliation and real receiver ingestion remain unqualified.
+The existing public token/report record pairing is verified, with OPS reports scoped
+to the exact Pulse host and `/projects/` path; no live report was executed.
+Home/calculator/APIs, unsafe referrers and all other excluded routes remain
+unmeasured; Home's pending work is outside this boundary. All master and
+qualification flags remain false, the verified public beaconToken is configured and document binding
+unset. Home and Projects both remain OFF. Restricted manual-mode processing is
+unresolved; `lite=true` alone is not proof. No geolocation service, hosting move,
+paid plan, synthetic regional proof or live vendor send is part of preparation.
+
+Run focused offline checks with existing dependencies/lockfile:
+
+```sh
+node --test evm/playground/analytics.test.js evm/playground/measurement-region.test.js evm/playground/knowledge.test.js evm/playground/worker.test.js
+node evm/playground/build-site.js
+```
+
+These tests substitute DOM/transport objects; they do not download or execute a
+vendor beacon or qualify live collection. The existing CI site-check command also
+includes the offline analytics fixtures. Public documentation has a new candidate
+digest and index revision `2026-11-02-r11-candidate`; nothing is published.
+
+Rollback source is the exact base above. A future live rollback must separately
+capture its actual serving Worker version, collector settings and collection-stop
+behavior. No historical audience series is merged across GA4 and Cloudflare.
+Next approval boundary: review this local diff; separately authorize any source
+publication, provider site/mode/injection configuration, controlled vendor/browser
+qualification, staging or production release. Collector activation is blocked
+until the regional, exact-site, referrer and lifecycle conditions are established.
+
+#### Projects country-bit extension — local only, November 1
+
+The existing Worker can now add one coarse `pulse-measurement-region` HTML meta
+value (`eligible` or `off`), using only trusted inbound `request.cf.country`.
+Known ISO countries outside the proposed 32-country deny list are prospective;
+unknown/missing/malformed values and caller country headers never qualify.
+This is IP-country suppression, not native RUM receiving-colo restriction or
+worldwide legal eligibility. No qualification flag is enabled by this preparation.
+
+Only HTTPS production `/projects/` is prospective. `/projects` continues serving
+its existing alias but gets `off`; `/projects.html` remains 404. Home, APIs and
+query/hash variants are excluded. Server fragments are normally not transmitted;
+the browser also rejects every fragment before considering a manual loader.
+The new non-secret existing-Worker binding `PULSE_MEASUREMENT_DOCUMENT_ENV` must
+be explicitly `production` before even a geographic eligible bit is emitted.
+It is NOT configured in this candidate; local/staging/preview/CI default off.
+A bit alone cannot enable collection: master enabled/production remain false,
+beaconToken blank, and regional/injection/lifecycle flags false.
+
+HTML remains `Cache-Control: no-store`. The marker is generated per request after
+raw ASSETS reads; it is never stored back into static assets/cache. Transformed
+HTML loses stale ETag/length/encoding/modified validators. Raw JS/CSS/docs assets
+remain byte-identical and independent of the marker. Node preview has no trusted
+country and emits no marker, which denies the loader. Tests cover both country
+orders and missing markers. No geography cookie, visitor ID, API or proxy exists.
+
+The prior checkpoint is retained at
+`/private/tmp/pulse-cf-analytics-evidence-20261101`; the extension's new handback
+and artifacts are at `/private/tmp/pulse-cf-projects-region-evidence-20261101`.
+The initial Projects extension failed shared-cache-header review; its evidence
+is historical, not the current accepted cache artifact. The corrected cache
+checkpoint is preserved at
+`/private/tmp/pulse-cf-projects-cachefix-evidence-20261101/handback.json`. The
+November 2 copy/document-scope continuation has a separate local handback at
+`/private/tmp/pulse-cf-projects-lifecycle-evidence-20261102/handback.json`.
+Collection remains OFF, with the remaining provider/SDK/lifecycle qualification
+and all source publication or staging/production deployment pending separate
+approval.

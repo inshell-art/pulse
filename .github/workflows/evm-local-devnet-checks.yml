@@ -37,7 +37,7 @@ jobs:
         run: npm ci
 
       - name: Run website and gateway tests
-        run: node --test playground/knowledge.test.js playground/worker.test.js
+        run: node --test playground/measurement-region.test.js playground/analytics.test.js playground/knowledge.test.js playground/worker.test.js
 
       - name: Run unit tests
         run: npm test

@@ -4,14 +4,16 @@ import abi from "../releases/pulse-core-v1/IPulseCore.abi.json" with { type: "js
 import { errorNames, uint, config, state, wireState } from "./core-api.js";
 import { publicAssets } from "./public-assets.js";
 
+import { projectsRegionBit, markMeasurementHtml } from "./measurement-region.js";
+
 const core = new Interface(abi);
 const endpoints = ["https://ethereum-sepolia-rpc.publicnode.com", "https://sepolia.gateway.tenderly.co"];
 const paths = new Map([...publicAssets].map(([route, [, , asset]]) => [route, asset]));
 const headers = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Content-Security-Policy": "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self'; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com; base-uri 'none'; frame-ancestors 'none'"
+  "Referrer-Policy": "no-referrer",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; connect-src 'self' https://cloudflareinsights.com; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'"
 };
 const safeErrors = new Set(["Invalid unsigned integer input", "Input exceeds its ABI width", "Missing curve settings", "Missing curve state", "Request is too large", "Unknown calculation", ...errorNames]);
 const json = (value, status = 200) => Response.json(value, { status, headers });
@@ -134,9 +136,20 @@ export function createWorker(fetchRpc = fetch) {
       const asset = paths.get(url.pathname);
       if (!asset || !["GET", "HEAD"].includes(request.method)) return json({ error: "Page not found" }, 404);
       url.pathname = asset;
-      const response = await env.ASSETS.fetch(new Request(url, request));
-      const secured = new Response(response.body, response);
+      const isHtml = publicAssets.get(new URL(request.url).pathname)[1].startsWith("text/html");
+      const assetRequest = new Request(url, request);
+      if (isHtml) for (const name of ["If-None-Match", "If-Modified-Since", "Range", "If-Range"]) assetRequest.headers.delete(name);
+      const response = await env.ASSETS.fetch(assetRequest);
+      let secured;
+      if (response.ok && isHtml && request.method === "GET") {
+        const body = markMeasurementHtml(await response.text(), projectsRegionBit(request, env.PULSE_MEASUREMENT_DOCUMENT_ENV));
+        secured = new Response(body, response);
+        for (const name of ["Content-Length", "Content-Encoding", "ETag", "Last-Modified"]) secured.headers.delete(name);
+      } else secured = new Response(response.body, response);
       for (const [key, value] of Object.entries(headers)) secured.headers.set(key, value);
+      // These override generic Cache-Control at shared caches. Geographic HTML
+      // must not inherit them, including HEAD, errors and unrewritten bodies.
+      if (isHtml) for (const name of ["CDN-Cache-Control", "Cloudflare-CDN-Cache-Control", "Surrogate-Control"]) secured.headers.delete(name);
       if (response.ok) secured.headers.set("Content-Type", publicAssets.get(new URL(request.url).pathname)[1]);
       return secured;
     }
