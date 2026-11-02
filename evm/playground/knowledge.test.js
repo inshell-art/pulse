@@ -115,7 +115,9 @@ test("bundled Worker serves exact built GET/HEAD bodies and security headers wit
         assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
         assert.equal(response.headers.get("Access-Control-Allow-Origin"), null);
         assert.match(response.headers.get("Content-Security-Policy"), /frame-ancestors 'none'/);
-        assert.equal(await response.text(), method === "HEAD" ? "" : readFileSync(new URL(source, target), "utf8"));
+        const raw = readFileSync(new URL(source, target), "utf8");
+        const expected = mediaType.startsWith("text/html") ? raw.replace('</head>', '<meta name="pulse-measurement-region" content="off">\n</head>') : raw;
+        assert.equal(await response.text(), method === "HEAD" ? "" : expected);
       }
     }
     for (const path of privatePaths) assert.equal((await worker.fetch(new Request(`https://pulse.inshell.art${path}`), env)).status, 404);
