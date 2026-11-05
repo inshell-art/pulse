@@ -1,6 +1,6 @@
 {
   "schema": "pulse.public-knowledge-index/v1",
-  "version": "2026-11-05-r13-candidate",
+  "version": "2026-11-05-r14-pilot-candidate",
   "language": "en",
   "purpose": "Public, read-only discovery for visitors using their own agents.",
   "publication": {
@@ -70,7 +70,7 @@
       "url": "/docs/playground.md",
       "authority": "site-documentation",
       "useFor": "What visitors can do; hypothetical purchases; local scenarios; privacy, including optional analytics; the limits of the directory and gateway status.",
-      "sha256": "7c6adb9847c7e93dc7d5443da45df45aabb3dd048a93235482251e7180ada5f7",
+      "sha256": "7b6d9e06496003772989533a567fd2b98535d9701af6ee4c224a46b4072b103f",
       "assets": []
     },
     {
