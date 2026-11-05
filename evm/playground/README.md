@@ -244,13 +244,21 @@ A quiet **Privacy** disclosure retains the existing `pulse.analytics.excluded.v1
 boolean. Old consent records, analytics history and cookies are not deleted;
 saved scenarios, authentication/functional storage and Core/gateway behavior are
 unchanged. No new visitor ID, collector endpoint, proxy or reporting credential
-is added to the frontend. Referrer-Policy is `no-referrer`; the optional loader
-also checks the incoming document referrer instead of replacing it with a label.
+is added to the frontend. Served HTTP Referrer-Policy remains `no-referrer`.
+Only the eligible Projects loader appends a `strict-origin` document meta after
+every existing check succeeds and immediately before appending the SDK. The
+whole measured document then has an origin-only default: later requests using
+it may send Pulse’s origin without the page path or query. Explicit `noreferrer`
+links and the SDK file’s `no-referrer` fetch keep their stricter policies.
+No meta is inserted for OFF/private/other/ineligible or unreadable-storage
+documents or when an existing collector blocks the owner loader. This affects
+more than collector transport; the quiet Privacy disclosure states the tradeoff.
+Incoming referrers are still checked, not rewritten or sanitized by the meta.
 
 The single owner-controlled native Cloudflare loader is **OFF in this candidate
 in every environment**, including production. `ANALYTICS_CONFIG` in
 `analytics-core.js` has `enabled: false`, `production: false`, the verified existing root public RUM
-`beaconToken` (`site_token`), and false injection, regional/manual-mode and document-lifecycle gates.
+`beaconToken` (`site_token`), and false injection, source-country-policy and document-lifecycle gates.
 A reporting API token is not a public beacon token or collection permission. The existing root snippet/public-token and reporting-record pairing was explicitly
 verified read-only on November 2; Pulse subdomain reuse follows the documented root relationship.
 This does not verify receiver acceptance or actual report ingestion. REST `site_tag` is a separate reporting/query identity; tests use
@@ -293,16 +301,24 @@ approval. This copy-only continuation runs no additional SDK tests.
 The earlier synthetic `history.pushState` private-path final-send **FAIL remains
 real and unsupported**, not waived or relabeled passed. Do not add a History API
 patch, router or navigation redesign for measurement. Script removal and reload
-do not promise cancellation of vendor handlers or a final report. Cross-tab
-exclusion, other native visibility/lifecycle cases, actual referrer negatives,
-trusted region/cache behavior, automatic-injection reconciliation and real receiver ingestion remain unqualified.
+do not promise cancellation of vendor handlers or a final report. Retained November 4
+upload-blocked fixtures showed cross-tab reload, native opaque-origin storage
+denial and blank/unsafe local HTTP referrers, then a trusted native tab-hide/resume
+pair and one real BFCache restoration followed by the source-owned reload into
+an excluded/no-SDK document. No post-exclusion SDK send was captured in that
+single Back case. Broader native HTTPS referrers, normal first-party storage
+policies, universal lifecycle/cache behavior and the automatic pilot remain
+unqualified. The origin-only change does not broaden their accepted scope.
 The existing public token/report record pairing is verified, with OPS reports scoped
-to the exact Pulse host and `/projects/` path; no live report was executed.
+to the exact Pulse host and `/projects/` path. A later bounded origin-only
+diagnostic returned one successful SDK POST and a correlated processed report;
+it was not organic audience or routine activation.
 Home/calculator/APIs, unsafe referrers and all other excluded routes remain
 unmeasured; Home's pending work is outside this boundary. All master and
 qualification flags remain false, the verified public beaconToken is configured and document binding
-unset. Home and Projects both remain OFF. Restricted manual-mode processing is
-unresolved; `lite=true` alone is not proof. No geolocation service, hosting move,
+unset. Home and Projects both remain OFF. Native receiving-colo behavior is
+unverified and not an equivalent mandatory source-country gate; `lite=true` alone
+is not proof of it. No geolocation service, hosting move,
 paid plan, synthetic regional proof or live vendor send is part of preparation.
 
 Run focused offline checks with existing dependencies/lockfile:
@@ -315,7 +331,7 @@ node evm/playground/build-site.js
 These tests substitute DOM/transport objects; they do not download or execute a
 vendor beacon or qualify live collection. The existing CI site-check command also
 includes the offline analytics fixtures. Public documentation has a new candidate
-digest and index revision `2026-11-02-r11-candidate`; nothing is published.
+digest and index revision `2026-11-05-r13-candidate`; this local integration is not published.
 
 Rollback source is the exact base above. A future live rollback must separately
 capture its actual serving Worker version, collector settings and collection-stop
@@ -323,7 +339,8 @@ behavior. No historical audience series is merged across GA4 and Cloudflare.
 Next approval boundary: review this local diff; separately authorize any source
 publication, provider site/mode/injection configuration, controlled vendor/browser
 qualification, staging or production release. Collector activation is blocked
-until the regional, exact-site, referrer and lifecycle conditions are established.
+until the source-country policy, exact-site, referrer and lifecycle conditions
+are established, with receiver/report acceptance separately tested under M4.
 
 #### Projects country-bit extension — local only, November 1
 
@@ -331,8 +348,12 @@ The existing Worker can now add one coarse `pulse-measurement-region` HTML meta
 value (`eligible` or `off`), using only trusted inbound `request.cf.country`.
 Known ISO countries outside the proposed 32-country deny list are prospective;
 unknown/missing/malformed values and caller country headers never qualify.
-This is IP-country suppression, not native RUM receiving-colo restriction or
-worldwide legal eligibility. No qualification flag is enabled by this preparation.
+The operator’s November 4 technical contract is the visitor’s trusted Cloudflare
+source country (`request.cf.country`), with the same 32 denied countries and
+missing/unknown countries kept off. Native RUM receiving-colo restriction remains
+unverified and is not an equivalent mandatory gate for this pilot. This policy
+does not guarantee worldwide legal eligibility. No qualification flag is enabled
+by this design decision or preparation.
 
 Only HTTPS production `/projects/` is prospective. `/projects` continues serving
 its existing alias but gets `off`; `/projects.html` remains 404. Home, APIs and
@@ -342,7 +363,11 @@ The new non-secret existing-Worker binding `PULSE_MEASUREMENT_DOCUMENT_ENV` must
 be explicitly `production` before even a geographic eligible bit is emitted.
 It is NOT configured in this candidate; local/staging/preview/CI default off.
 A bit alone cannot enable collection: master enabled/production remain false,
-beaconToken blank, and regional/injection/lifecycle flags false.
+the existing verified public beaconToken is unchanged, and
+`sourceCountryPolicyQualified`/injection/lifecycle flags remain false. The renamed
+source-country flag still requires authorized real Projects country/cache proof;
+mocked headers, trace loc, route availability and old SDK fixtures cannot set it
+true. The old `regionalManualModeQualified` property does not qualify the new gate.
 
 HTML remains `Cache-Control: no-store`. The marker is generated per request after
 raw ASSETS reads; it is never stored back into static assets/cache. Transformed
@@ -363,3 +388,61 @@ November 2 copy/document-scope continuation has a separate local handback at
 Collection remains OFF, with the remaining provider/SDK/lifecycle qualification
 and all source publication or staging/production deployment pending separate
 approval.
+
+
+#### M3 source-country alignment — local only, November 4
+
+This continuation uses local commit `ed3595caf305424f176a95377bb4b1d241e0fed5`,
+whose exact tree `bea7a46c6ecb6ef69266cf44e33ac43af89c4243` matches released
+PR7/main `dd6bdb4f724a53ed51194e8274e0d3a41fbcddfc`. The earlier preparation
+sections and provider version records above are dated history. Owner main and
+the saved functionality batch are preserved. The gate is now named
+`sourceCountryPolicyQualified`; its actual value stays false. No country list,
+Worker/header/cache logic, public scope, browser guard or Core calculation changes.
+
+OPS’s separately executed SG/GB/SG trace sequence establishes existing route
+capability only. It does not establish Projects’ `request.cf.country` output,
+cache ordering or RUM receiving-colo behavior. The refreshed proposal uses the
+existing SG05 and UK routes, exact production `/projects/`, and a temporary
+`PULSE_MEASUREMENT_DOCUMENT_ENV=production` binding while every SDK master and
+qualification flag remains false. Apply/rollback source/config identities, both
+country orders, request/time ceilings and stop conditions need review before
+any distinct live operation. Missing/unknown-country denial remains covered by
+simulated Worker fixtures; it must not be manufactured with caller headers or
+reported as a real Cloudflare observation. Different POPs limit shared-cache proof.
+
+This section records the November 4 M3 preparation. Later bounded M3 observations
+and the M4 origin-only diagnostic are described below; no qualification flag is
+automatically enabled by them. Collection stays OFF, deployment pending and M6
+parked. This candidate adds no framework, pipeline or new gate.
+
+
+#### M4 eligible-document origin policy — local only, November 5
+
+This integration builds on the independently reviewed M3 source-country tree
+`913c03fd03fd8f22b9efc38bfde8ee20258f009a`, preserving its exact static Projects
+scope, denied32/missing/unknown country policy, browser/referrer/storage exclusions
+and actual false master/qualification values. After eligibility and existing-SDK
+checks pass, one `meta name="referrer" content="strict-origin"` is appended
+immediately before the official SDK. The SDK script still has explicit
+`referrerPolicy="no-referrer"`; Worker/Node HTTP no-referrer and CSP are unchanged.
+This is a document default change, not a collector-only request setting.
+
+OPS’s bounded native diagnostic combined a real Projects document with strict-origin,
+manual receiver mode and a longer experimental settling margin. One event1 POST
+returned204 with an actual origin-only Referer/Origin and matching ACAO; the exact
+site/host/path/time aggregate contained count1/visits1 in allBots and bot0 with
+sampleInterval1. This is diagnostic correlation, not organic audience or event-ID
+proof. The earlier404 cause is not isolated. Exact Disable was restored within
+229.785seconds; all source/reader flags remain false. November5 China remains
+quarantined for both shared host reports; firstFullProductionDay stays null.
+This preparation changes no reader or provider record.
+
+The local automatic path has not been deployed or proved against the real receiver.
+The existing reload/possible-final-public-report contract and unsupported private
+same-document final-send FAIL remain. No sender/fetch wrapper, forged Referer, proxy,
+new panel, lifecycle interception or broad HTTPS/storage qualification is added.
+After independent review, a separately approved OFF staging release may verify
+assets/headers/absence of policy meta and SDK; eligible real production activation
+and processed-report checks remain distinct approvals/workloads. Reuse the existing
+site pipeline and exact serving/config rollback, without a new release gate.

@@ -44,6 +44,7 @@
       <summary>Privacy</summary>
       <p data-privacy-status role="status" aria-live="polite">Optional audience statistics are off on this page.</p>
       <p>Pulse does not ask for analytics consent. Optional statistics stay off unless the site's collection safeguards are qualified. If enabled later, measurement is limited to the public Projects page at /projects/. Cloudflare receives its URL, referrer and browser performance information; some visits and regions remain unmeasured. Calculator inputs are not sent as analytics events.</p>
+      <p>On measured Projects pages, later requests using the page’s default policy may send Pulse’s origin, without the page path or query. This affects the whole measured document. The SDK file is fetched without a referrer; other pages keep no-referrer.</p>
       <p>Excluding this browser prevents measurement on later page loads. If this page is being measured, it reloads; a final performance report for the already-open public page may be sent while it closes. Your saved scenarios are unchanged. Removing the exclusion does not start measurement on this page. Clearing site storage also removes the exclusion.</p>
       <p><button type="button" data-privacy-action="exclude" disabled>Exclude this browser</button><button type="button" data-privacy-action="include" hidden disabled>Remove browser exclusion</button></p>
       <p><a href="/docs/playground.md">Site privacy and simulation details</a> · <a href="https://www.cloudflare.com/privacypolicy/" rel="noreferrer">Cloudflare privacy</a></p>

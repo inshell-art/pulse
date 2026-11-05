@@ -7,7 +7,7 @@ import { createAnalytics, ANALYTICS_CONFIG, ANALYTICS_ORIGIN, ANALYTICS_EXCLUSIO
 
 // Hypothetical qualification exercises the loader contract, not vendor behavior.
 const qualified = { enabled: true, production: true, beaconToken: 'a'.repeat(32), reportingSiteTag: 'b'.repeat(32), automaticInjectionDisabled: true,
-  regionalManualModeQualified: true, documentLifecycleQualified: true, referrerOrigins: ['https://search.example'] };
+  sourceCountryPolicyQualified: true, documentLifecycleQualified: true, referrerOrigins: ['https://search.example'] };
 const eligible = overrides => analyticsEligibility({ config: qualified, url: `${ANALYTICS_ORIGIN}/projects/`, regionMarker: 'eligible', ...overrides });
 class Target {
   handlers = new Map();
@@ -16,7 +16,7 @@ class Target {
   dispatch(name, event = {}) { for (const fn of this.handlers.get(name) ?? []) fn(event); }
 }
 function fixture({ config = qualified, url = `${ANALYTICS_ORIGIN}/projects/`, regionMarker = 'eligible', referrer = '', automation = {}, existingScript = false, failure } = {}) {
-  const win = new Target(), doc = new Target(), data = new Map(), writes = [], scripts = [];
+  const win = new Target(), doc = new Target(), data = new Map(), writes = [], scripts = [], policies = [], appended = [];
   let reloads = 0;
   win.location = { href: url, reload() { reloads += 1; } };
   win.navigator = { webdriver: false, userAgent: 'Mozilla/5.0 Chrome/156.0.0.0', ...automation };
@@ -29,27 +29,36 @@ function fixture({ config = qualified, url = `${ANALYTICS_ORIGIN}/projects/`, re
   doc.referrer = referrer;
   doc.querySelectorAll = () => regionMarker === null ? [] : [{ getAttribute: () => regionMarker }];
   doc.querySelector = () => existingScript ? {} : null;
-  doc.createElement = tag => { assert.equal(tag, 'script'); return { attributes: {}, setAttribute(k, v) { this.attributes[k] = v; } }; };
-  doc.head = { append(script) { scripts.push(script); } }; win.document = doc;
+  doc.createElement = tag => { assert.ok(['meta', 'script'].includes(tag)); return { tagName: tag.toUpperCase(), attributes: {}, setAttribute(k, v) { this.attributes[k] = v; } }; };
+  doc.head = { append(node) { appended.push(node); (node.tagName === 'SCRIPT' ? scripts : policies).push(node); } }; win.document = doc;
   Object.defineProperty(doc, 'cookie', { get() { throw Error('No cookie access'); }, set() { throw Error('No cookie writes'); } });
-  return { win, doc, data, writes, scripts, reloads: () => reloads, start: () => createAnalytics({ window: win, document: doc, config }) };
+  return { win, doc, data, writes, scripts, policies, appended, reloads: () => reloads, start: () => createAnalytics({ window: win, document: doc, config }) };
 }
 
 test('authored candidate is OFF in production, staging, previews, local and CI regardless of old Allow', () => {
-  for (const key of ['enabled', 'production', 'automaticInjectionDisabled', 'regionalManualModeQualified', 'documentLifecycleQualified']) assert.equal(ANALYTICS_CONFIG[key], false);
+  for (const key of ['enabled', 'production', 'automaticInjectionDisabled', 'sourceCountryPolicyQualified', 'documentLifecycleQualified']) assert.equal(ANALYTICS_CONFIG[key], false);
   assert.match(ANALYTICS_CONFIG.beaconToken, /^[a-f0-9]{32}$/); assert.notEqual(ANALYTICS_CONFIG.beaconToken, '0'.repeat(32)); assert.deepEqual(ANALYTICS_CONFIG.referrerOrigins, []);
   for (const url of [ANALYTICS_ORIGIN, `${ANALYTICS_ORIGIN}/projects/`, 'https://pulse-staging.inshell.art/', 'https://pulse-site.user.workers.dev/',
     'https://preview.pages.dev/', 'http://127.0.0.1:4173/']) {
     const f = fixture({ config: ANALYTICS_CONFIG, url });
     f.data.set('pulse.analytics.preference.v1', JSON.stringify({ choice: 'allow', version: 1, expiresAt: 9999999999999 }));
-    assert.equal(f.start().status().loaded, false); assert.equal(f.scripts.length, 0); assert.equal(f.writes.length, 0);
+    assert.equal(f.start().status().loaded, false); assert.equal(f.appended.length, 0); assert.equal(f.writes.length, 0);
   }
 });
 
 test('all production configuration and qualification gates must independently be explicit true', () => {
   assert.equal(eligible(), 'eligible');
-  for (const key of ['enabled', 'production', 'automaticInjectionDisabled', 'regionalManualModeQualified', 'documentLifecycleQualified']) {
-    for (const value of [false, undefined, 'true', 1]) assert.notEqual(eligible({ config: { ...qualified, [key]: value } }), 'eligible', `${key}=${value}`);
+  for (const key of ['enabled', 'production', 'automaticInjectionDisabled', 'sourceCountryPolicyQualified', 'documentLifecycleQualified']) {
+    for (const value of [false, undefined, 'true', 1]) {
+      const config = { ...qualified, [key]: value };
+      assert.notEqual(eligible({ config }), 'eligible', `${key}=${value}`);
+      const f = fixture({ config }); f.start(); assert.equal(f.appended.length, 0, `${key}=${value}`);
+    }
+  }
+  // An old receiving-colo/manual-mode label is not source-country policy proof.
+  assert.equal(Object.hasOwn(ANALYTICS_CONFIG, 'regionalManualModeQualified'), false);
+  for (const value of [false, undefined]) {
+    assert.equal(eligible({ config: { ...qualified, sourceCountryPolicyQualified: value, regionalManualModeQualified: true } }), 'source-country-unqualified');
   }
   for (const beaconToken of ['', null, '0'.repeat(32), 'G-EXAMPLE', 'ops-analytics-inshell-read', 'https://example.com', 'a'.repeat(33)]) {
     assert.equal(eligible({ config: { ...qualified, beaconToken } }), 'site-unconfigured');
@@ -94,8 +103,11 @@ test('known automation suppresses even a hypothetically qualified production loa
   const f = fixture({ automation: { webdriver: true } }); f.start(); assert.equal(f.scripts.length, 0);
 });
 
-test('only one documented native loader is constructed; no custom payload, ID or proxy', () => {
+test('eligible document gets one origin-only policy immediately before one native loader, whose file fetch stays no-referrer', () => {
   const f = fixture(); const c = f.start(); assert.equal(c.status().loaded, true); assert.equal(f.start(), c);
+  assert.equal(f.policies.length, 1); assert.equal(f.policies[0].name, 'referrer'); assert.equal(f.policies[0].content, 'strict-origin');
+  assert.deepEqual(f.appended.map(node => node.tagName), ['META', 'SCRIPT']);
+  assert.equal(f.appended[0], f.policies[0]); assert.equal(f.appended[1], f.scripts[0]);
   assert.equal(f.scripts.length, 1); assert.equal(f.scripts[0].src, ANALYTICS_SCRIPT);
   assert.equal(f.scripts[0].type, 'module'); assert.equal(f.scripts[0].referrerPolicy, 'no-referrer');
   assert.deepEqual(JSON.parse(f.scripts[0].attributes['data-cf-beacon']), { token: qualified.beaconToken, spa: false });
@@ -103,9 +115,21 @@ test('only one documented native loader is constructed; no custom payload, ID or
   assert.notEqual(JSON.parse(f.scripts[0].attributes['data-cf-beacon']).token, qualified.reportingSiteTag);
   const reportingOnly = fixture({ config: { ...qualified, beaconToken: undefined } });
   assert.equal(reportingOnly.start().status().reason, 'site-unconfigured');
-  assert.equal(reportingOnly.scripts.length, 0);
+  assert.equal(reportingOnly.appended.length, 0);
   assert.equal(f.writes.length, 0);
-  const injected = fixture({ existingScript: true }); assert.equal(injected.start().status().loaded, false); assert.equal(injected.scripts.length, 0);
+  const injected = fixture({ existingScript: true }); assert.equal(injected.start().status().loaded, false); assert.equal(injected.appended.length, 0);
+});
+
+test('ineligible or unreadable/excluded browsers cannot change document policy or append an SDK', () => {
+  for (const options of [
+    { url: `${ANALYTICS_ORIGIN}/` }, { url: `${ANALYTICS_ORIGIN}/projects/?private=1` },
+    { url: 'https://pulse-staging.inshell.art/projects/' }, { regionMarker: null }, { regionMarker: 'off' },
+    { referrer: `${ANALYTICS_ORIGIN}/private` }, { automation: { webdriver: true } }, { failure: 'read' },
+  ]) {
+    const f = fixture(options); assert.equal(f.start().status().loaded, false); assert.equal(f.appended.length, 0);
+  }
+  const excluded = fixture(); excluded.data.set(ANALYTICS_EXCLUSION_KEY, '1');
+  assert.equal(excluded.start().status().loaded, false); assert.equal(excluded.appended.length, 0);
 });
 
 test('exclusion alone changes its existing boolean, preserving saved scenarios, old choices and functional data', () => {
@@ -144,7 +168,7 @@ test('hypothetical loaded-document withdrawal requests a real boundary, never pr
 test('failed or silently dropped exclusion writes are reported, never clear stored data', () => {
   for (const failure of ['write', 'silent-write']) {
     const f = fixture({ config: ANALYTICS_CONFIG, failure }); f.data.set('saved', 'keep');
-    const state = f.start().setExcluded(true); assert.equal(state.storageAvailable, false); assert.equal(f.data.get('saved'), 'keep'); assert.equal(f.scripts.length, 0);
+    const state = f.start().setExcluded(true); assert.equal(state.storageAvailable, false); assert.equal(f.data.get('saved'), 'keep'); assert.equal(f.appended.length, 0);
   }
 });
 
@@ -158,11 +182,13 @@ test('page/CSP integration removes GA4 and all consent prompts while keeping qui
     assert.match(text, /Excluding this browser prevents measurement on later page loads/);
     assert.match(text, /If this page is being measured, it reloads; a final performance report .* may be sent while it closes/);
     assert.match(text, /Your saved scenarios are unchanged/);
+    assert.match(text, /whole measured document/); assert.match(text, /without the page path or query/);
+    assert.doesNotMatch(text, /<meta\b[^>]*name=["']referrer["']/);
   }
   for (const file of ['README.md', 'docs/playground.md']) {
     const text = readFileSync(new URL(file, import.meta.url), 'utf8');
     assert.match(text, /Home-to-Projects/); assert.match(text, /external.*allowlist is empty/);
-    assert.match(text, /Cross-tab/); assert.match(text, /final.*report/);
+    assert.match(text, /cross-tab/i); assert.match(text, /final.*report/);
     assert.match(text, /private-path final-send.*(?:FAIL|failure)/);
   }
   for (const file of ['worker.js', 'server.js']) {
