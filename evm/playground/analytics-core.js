@@ -11,7 +11,8 @@ export const ANALYTICS_CONFIG = Object.freeze({
   production: false,
   beaconToken: "ed3c6ec25c144104b45405c4f6b19fa5", // Public REST site_token, NOT reporting site_tag or an account API credential.
   automaticInjectionDisabled: false,
-  regionalManualModeQualified: false,
+  // Trusted request.cf.country policy and real Projects/cache proof, not RUM receiving-colo behavior.
+  sourceCountryPolicyQualified: false,
   documentLifecycleQualified: false,
   referrerOrigins: Object.freeze([]), // External origins need separate review.
 });
@@ -46,7 +47,7 @@ export function analyticsEligibility({ config = {}, url, referrer = '', excluded
   if (!analyticsReferrerAllowed(referrer, config.referrerOrigins)) return 'referrer-excluded';
   if (typeof config.beaconToken !== 'string' || !/^[a-f0-9]{32}$/.test(config.beaconToken) || /^0+$/.test(config.beaconToken)) return 'site-unconfigured';
   if (config.automaticInjectionDisabled !== true) return 'injection-unqualified';
-  if (config.regionalManualModeQualified !== true) return 'region-unqualified';
+  if (config.sourceCountryPolicyQualified !== true) return 'source-country-unqualified';
   // spa:false is not evidence that unload/visibility or exclusion stops are safe.
   if (config.documentLifecycleQualified !== true) return 'lifecycle-unqualified';
   return 'eligible';
@@ -118,6 +119,11 @@ export function createAnalytics({ window: win, document: doc = win.document, con
       script.src = ANALYTICS_SCRIPT;
       script.referrerPolicy = 'no-referrer';
       script.setAttribute('data-cf-beacon', JSON.stringify({ token: settings.beaconToken, spa: false }));
+      // This changes the eligible document's default; the SDK file stays no-referrer.
+      const policy = doc.createElement('meta');
+      policy.name = 'referrer';
+      policy.content = 'strict-origin';
+      doc.head.append(policy);
       doc.head.append(script);
       loaded = true;
     }

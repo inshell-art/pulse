@@ -39,12 +39,12 @@ test('only canonical production Projects GET/HEAD is a prospective document: ali
   assert.equal(projectsRegionBit(request('US', '/projects/', origin, { method: 'POST' }), 'production'), 'off');
 });
 
-test('existing Worker isolates allowed/denied/unknown HTML in both country request orders without mutating raw cache', async () => {
-  for (const sequence of [['US', 'DE', undefined, 'CN'], ['DE', 'US', 'CH', 'US'], [undefined, 'US', 'ZZ', 'US']]) {
+test('existing Worker simulates allowed/denied/unknown HTML in both country request orders without mutating raw cache', async () => {
+  for (const sequence of [['SG', 'GB', undefined, 'SG'], ['GB', 'SG', 'ZZ', 'GB'], ['US', 'DE', undefined, 'CN'], ['DE', 'US', 'CH', 'US'], [undefined, 'US', 'ZZ', 'US']]) {
     const runtime = worker(), assets = env();
     for (const country of sequence) {
       const response = await runtime.fetch(request(country), assets);
-      const bit = ['US', 'CN'].includes(country) ? 'eligible' : 'off';
+      const bit = ['US', 'CN', 'SG'].includes(country) ? 'eligible' : 'off';
       const body = await response.text(); assert.equal(response.status, 200);
       assert.equal(response.headers.get('Cache-Control'), 'no-store'); assert.equal(response.headers.get('ETag'), null);
       assert.equal((body.match(/name="pulse-measurement-region"/g) ?? []).length, 1);
