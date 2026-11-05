@@ -232,12 +232,16 @@ The project entries on `/projects` come from [`projects.json`](projects.json) an
 
 The browser stores settings and simulated purchases in its own `localStorage` under `pulse-core-playground/v1`. No scenario history is saved by the server. Each `initialize`, selected `quote`, and `advance` input is forwarded to the Sepolia RPC for a read-only call, so those individual inputs leave the device even though the history stays local. The chart uses the same integer rule locally for smooth scrubbing and checks the selected ask against the deployed contract. No wallet, payment, mint, transaction, or real auction state is involved. “Start again” replaces the saved sequence with a fresh one.
 
-### Optional statistics (local-only candidate)
+### Optional statistics (bounded automatic-pilot candidate)
 
-November 1 preparation on `codex/cf-analytics-local-20261101` starts from
+Historical November 1 preparation on `codex/cf-analytics-local-20261101` started from
 `dbf624fac23c405d53472da43a097157a0e54acb`, the authoritative main containing
 November 1's privacy release. It is separate from the saved October functionality
-batch. No commit, publication, provider collector change or deployment is authorized.
+batch. That preparation did not authorize publication or provider changes.
+The November 5 pilot continuation below starts from actual merged main
+`5ba47eb45e051e06a5d6697d46dc8b32811be773`; earlier local-only and provider
+records are dated history. Current authority permits local preparation/checks
+only, with collection OFF and publication/deployment pending.
 
 GA4 installation, its cookie/consent panel and Google CSP destinations are removed.
 A quiet **Privacy** disclosure retains the existing `pulse.analytics.excluded.v1`
@@ -255,10 +259,16 @@ documents or when an existing collector blocks the owner loader. This affects
 more than collector transport; the quiet Privacy disclosure states the tradeoff.
 Incoming referrers are still checked, not rewritten or sanitized by the meta.
 
-The single owner-controlled native Cloudflare loader is **OFF in this candidate
-in every environment**, including production. `ANALYTICS_CONFIG` in
-`analytics-core.js` has `enabled: false`, `production: false`, the verified existing root public RUM
-`beaconToken` (`site_token`), and false injection, source-country-policy and document-lifecycle gates.
+The released OFF source has all five client values false. This local pilot
+candidate proposes `enabled`, `production`, `automaticInjectionDisabled`,
+`sourceCountryPolicyQualified` and `documentLifecycleQualified` as **true only
+for the bounded static Projects contract below**. The verified public beaconToken
+stays unchanged. Ordinary builds remain OFF: **`PULSE_MEASUREMENT_DOCUMENT_ENV`
+is absent from default/staging Wrangler settings**, so the trusted server marker
+is off and the loader cannot run. Staging also rejects the production-only host.
+These proposed values are not blanket browser qualification or permission to
+publish/activate. No provider change here. Live source flags remain at the last
+accepted OFF release until separately authorized promotion.
 A reporting API token is not a public beacon token or collection permission. The existing root snippet/public-token and reporting-record pairing was explicitly
 verified read-only on November 2; Pulse subdomain reuse follows the documented root relationship.
 This does not verify receiver acceptance or actual report ingestion. REST `site_tag` is a separate reporting/query identity; tests use
@@ -446,3 +456,83 @@ After independent review, a separately approved OFF staging release may verify
 assets/headers/absence of policy meta and SDK; eligible real production activation
 and processed-report checks remain distinct approvals/workloads. Reuse the existing
 site pipeline and exact serving/config rollback, without a new release gate.
+
+
+#### M4 automatic Projects pilot — local preparation, November 5
+
+Base: actual merged main `5ba47eb45e051e06a5d6697d46dc8b32811be773`, tree
+`5f64a693dd9aa6a6ebb6dd8e3fbcc646fab05b84`. The existing automatic `analytics.js`
+imports immutable config; no runtime facade, console SDK insertion or old Allow
+preference enables it. Only a separately approved temporary production binding
+can yield eligibility. Preserve all guards, country32/unknownOFF, source/SDK URL,
+public token, policy order and `spa:false`. No new control, endpoint, framework,
+credential, operator allowlist or functionality-batch change. Local fixtures
+never fetch/evaluate the SDK and write no real browser preference/storage.
+
+| Proposed value | Narrow retained evidence | Limit / live precondition |
+| --- | --- | --- |
+| `enabled=true`, `production=true` | Existing exact production Projects scope and mandatory server-marker gate | Experiment control, not proof of automatic receipt or routine activation |
+| `automaticInjectionDisabled=true` | Reviewed first-party GA4 removal/one-loader code; native M4 Manual/no-auto-injection and single SDK diagnostic | Live preflight must reverify exact Manual/no-auto-injection and no competitor; shared Disable unchanged now |
+| `sourceCountryPolicyQualified=true` | Accepted M3 trusted-source-country contract; repeated SGeligible/UKoff responses and OFF restoration; denied32/unknown/spoof/cache source tests | Not raw same-request country attribution, universal same-POP cache isolation, RUM-colo restriction or legal exemption |
+| `documentLifecycleQualified=true` | Accepted static full-document/reload contract: cross-tab exclusion, opaque-storage failure, hide/resume and one Back/BFCache restoration into source-owned reload/exclusion | Closing public report may remain; broader HTTPS/referrer/storage/lifecycle unqualified; private same-document final-send FAIL still unsupported |
+
+OPS retains the M3 coverage disposition/live-execution result, resumed native M4
+origin diagnostic and independent local-origin/production reviews dated November5.
+The table transfers only those bounded observations. No authored Projects History
+or SPA router exists; adding private content/routing/changed scripts requires
+re-review. Empty external allowlist remains: blank/direct or safe exact Projects
+referrers only. Owned pilot enters directly with blank referrer. Source checks
+for safe Projects do not claim new native HTTPS evidence. Unreadable storage
+fails closed; next-document exclusion is not immediate cancellation.
+
+A pilot is a **short public exposure**, not operator-only. Other eligible visitors
+can load; their traffic is not capped by our owned-tab budget. Already-open old
+manual SDK documents under shared Inshell/Pulse registration may send too.
+Restoring Disable and the prior OFF source/version closes new eligibility, but
+cannot recall an issued report or stop a stale SDK immediately. Both restorations
+must be independently verified. Quarantine every China date touched by the shared
+window/final sends for both hosts; firstFullProductionDay stays null and reader
+qualification remains off. No report row is automatically operator/organic traffic.
+
+**Later ordinary PR/OFF staging proposal, not executed:** publish exact feature
+candidate, normal PR CI success, one existing-binding staging build/upload/deploy;
+no main merge yet. Estimate15active minutes excluding CI/provider queues, at most
+12static GET/HEAD (reserve2OPS) plus one Projects view. Retain fresh rollback/config,
+match26asset digests and returned version. No document binding/default override
+or hidden staging-eligibility bypass. OFF staging cannot qualify automatic receipt.
+
+**Later production apply/restore proposal, not executed:** separate exact main
+promotion/pilot approval and normal main CI. Retain fresh actual OFF production
+version/settings/assets; last accepted version `0d2da4a5-c72a-4f87-b1c5-4392895c6c4e`,
+deployment `6dafe62a-68dd-4356-ab7f-c4cd4a0b9245` is a dated anchor, not fresh
+readiness or authority. Use existing Wrangler4.147.0 versions upload, explicit
+`--env=""`, and only on that temporary version
+`--var PULSE_MEASUREMENT_DOCUMENT_ENV:production` (no `--keep-vars`). The binding
+is never authored in default/staging. Preserve ASSETS/domain/IssuesON/Logs+TracesOFF;
+verify returned version bindings/assets before traffic deploy. Upload is not
+serving. No new grant/API fallback/restore control is assumed.
+
+Future preflight must establish fresh access/headroom/TLS, exact candidate/SDK,
+supported native capture and working provider/restore controls. Record report
+baseline and closed windows; upload candidate before opening receiver. Change
+shared Disable to Manual/no-auto-injection with native/API agreement, then deploy
+the exact returned pilot version at100%; one ordinary direct Projects navigation,
+one departure. Start600wall-second window at first Manual change; begin restoration
+by minute8 and verify exact Disable plus fresh prior OFF version by minute10.
+Version restore uses the same existing explicit-environment exact-version deploy
+flow, not a new binding patch or automatic redeploy of main. Verify OFF marker,
+old client bytes, bindings/settings/domain and Disable separately; record deliberate
+main/production divergence. Failed restore is an immediate unresolved state,
+not successful recovery. Closing the document may permit its accepted final report.
+
+Proposed live ceiling:15active minutes excluding queues, never extending the
+separate10minute receiver window. One candidate upload, one pilot deploy, one
+planned OFF restore; two shared mode changes; one inertSDKsourcefetch/nativeSDKload;
+owned tab≤40first-party requests,≤2SDKPOSTattempts/≤2OPTIONS, no resend. Staticchecks
+≤12with2reservedOPS; aggregateHTTPreads≤6across≤4fixed checkpoints, no polling/timer.
+Other public/stale-tab traffic is outside owned budget. Reports are read after
+restoration; do not keep collection open waiting for arrival. Correlated receipt
+is not event-ID attribution, unique people or a clean full production day.
+
+Local checks transfer no publication/deployment/provider/live-send authority.
+M6parked, functionality batch saved, Lab email unchanged, working route untouched.

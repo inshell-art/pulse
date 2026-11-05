@@ -4,16 +4,20 @@ export const ANALYTICS_EXCLUSION_KEY = 'pulse.analytics.excluded.v1';
 export const ANALYTICS_SCRIPT = 'https://static.cloudflareinsights.com/beacon.min.js';
 export const ANALYTICS_ROUTES = Object.freeze(['/projects/']);
 
-// LOCAL CANDIDATE: existing root public-token pairing verified November 2; collection remains unqualified.
+// LOCAL PILOT CANDIDATE ONLY: static public Projects, bounded full-document scope.
+// Ordinary builds stay OFF: no PULSE_MEASUREMENT_DOCUMENT_ENV binding is authored.
+// A live window needs separate approval, exact manual/no-auto-injection readback
+// and an eligible server marker. These values are not broad browser qualification.
 // These are reviewed source/build settings, never URL, storage or consent inputs.
 export const ANALYTICS_CONFIG = Object.freeze({
-  enabled: false,
-  production: false,
+  enabled: true,
+  production: true,
   beaconToken: "ed3c6ec25c144104b45405c4f6b19fa5", // Public REST site_token, NOT reporting site_tag or an account API credential.
-  automaticInjectionDisabled: false,
-  // Trusted request.cf.country policy and real Projects/cache proof, not RUM receiving-colo behavior.
-  sourceCountryPolicyQualified: false,
-  documentLifecycleQualified: false,
+  automaticInjectionDisabled: true,
+  // Bounded M3 SG/UK responses plus denied/unknown source tests; not RUM-colo proof.
+  sourceCountryPolicyQualified: true,
+  // Static full-document/reload contract only; a closing public report may remain.
+  documentLifecycleQualified: true,
   referrerOrigins: Object.freeze([]), // External origins need separate review.
 });
 
@@ -81,7 +85,8 @@ export function createAnalytics({ window: win, document: doc = win.document, con
     locked = true;
     // Removing the script cannot stop vendor handlers. A full document reload
     // applies the saved exclusion/gates; an already queued final beacon may remain.
-    // This path is NOT qualified for production: documentLifecycleQualified=false.
+    // Bounded static-document contract, not private same-document safety or
+    // immediate cancellation. See the pilot evidence/limits in README.md.
     try { win.location.reload(); } catch { /* UI keeps the reload requirement visible. */ }
   }
   const controller = {

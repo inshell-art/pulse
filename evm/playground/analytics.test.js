@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
+import { createWorker } from './worker.js';
 import { createAnalytics, ANALYTICS_CONFIG, ANALYTICS_ORIGIN, ANALYTICS_EXCLUSION_KEY,
   ANALYTICS_SCRIPT, analyticsEligibility, analyticsKnownAutomation, analyticsReferrerAllowed } from './analytics-core.js';
 
@@ -35,12 +36,12 @@ function fixture({ config = qualified, url = `${ANALYTICS_ORIGIN}/projects/`, re
   return { win, doc, data, writes, scripts, policies, appended, reloads: () => reloads, start: () => createAnalytics({ window: win, document: doc, config }) };
 }
 
-test('authored candidate is OFF in production, staging, previews, local and CI regardless of old Allow', () => {
-  for (const key of ['enabled', 'production', 'automaticInjectionDisabled', 'sourceCountryPolicyQualified', 'documentLifecycleQualified']) assert.equal(ANALYTICS_CONFIG[key], false);
+test('pilot source values are explicit, but ordinary documents/environments stay OFF regardless of old Allow', () => {
+  for (const key of ['enabled', 'production', 'automaticInjectionDisabled', 'sourceCountryPolicyQualified', 'documentLifecycleQualified']) assert.equal(ANALYTICS_CONFIG[key], true);
   assert.match(ANALYTICS_CONFIG.beaconToken, /^[a-f0-9]{32}$/); assert.notEqual(ANALYTICS_CONFIG.beaconToken, '0'.repeat(32)); assert.deepEqual(ANALYTICS_CONFIG.referrerOrigins, []);
   for (const url of [ANALYTICS_ORIGIN, `${ANALYTICS_ORIGIN}/projects/`, 'https://pulse-staging.inshell.art/', 'https://pulse-site.user.workers.dev/',
     'https://preview.pages.dev/', 'http://127.0.0.1:4173/']) {
-    const f = fixture({ config: ANALYTICS_CONFIG, url });
+    const f = fixture({ config: ANALYTICS_CONFIG, url, regionMarker: 'off' });
     f.data.set('pulse.analytics.preference.v1', JSON.stringify({ choice: 'allow', version: 1, expiresAt: 9999999999999 }));
     assert.equal(f.start().status().loaded, false); assert.equal(f.appended.length, 0); assert.equal(f.writes.length, 0);
   }
@@ -133,7 +134,7 @@ test('ineligible or unreadable/excluded browsers cannot change document policy o
 });
 
 test('exclusion alone changes its existing boolean, preserving saved scenarios, old choices and functional data', () => {
-  const f = fixture({ config: ANALYTICS_CONFIG });
+  const f = fixture({ config: ANALYTICS_CONFIG, regionMarker: 'off' });
   const kept = new Map([['pulse-core-playground/v1', '{"scenario":"saved"}'], ['pulse.analytics.preference.v1', '{"choice":"allow"}'], ['auth', 'unchanged']]);
   for (const [key, value] of kept) f.data.set(key, value);
   const c = f.start(); assert.equal(c.setExcluded(true).excluded, true); assert.equal(c.setExcluded(false).excluded, false);
@@ -161,13 +162,13 @@ test('hypothetical loaded-document withdrawal requests a real boundary, never pr
       assert.equal(next.data.get('pulse-core-playground/v1'), 'saved'); assert.equal(next.writes.length, 0);
     }
     // Offline reload intent and next-document gate only, not native final-send cancellation.
-    assert.equal(ANALYTICS_CONFIG.documentLifecycleQualified, false);
+    assert.equal(ANALYTICS_CONFIG.documentLifecycleQualified, true); // Bounded contract; not cancellation proof.
   }
 });
 
 test('failed or silently dropped exclusion writes are reported, never clear stored data', () => {
   for (const failure of ['write', 'silent-write']) {
-    const f = fixture({ config: ANALYTICS_CONFIG, failure }); f.data.set('saved', 'keep');
+    const f = fixture({ config: ANALYTICS_CONFIG, failure, regionMarker: 'off' }); f.data.set('saved', 'keep');
     const state = f.start().setExcluded(true); assert.equal(state.storageAvailable, false); assert.equal(f.data.get('saved'), 'keep'); assert.equal(f.appended.length, 0);
   }
 });
@@ -201,7 +202,7 @@ test('page/CSP integration removes GA4 and all consent prompts while keeping qui
 });
 
 test('actual quiet Privacy entry preserves storage and applies exclusion without a dialog or collector', async () => {
-  const f = fixture({ config: ANALYTICS_CONFIG });
+  const f = fixture({ config: ANALYTICS_CONFIG, regionMarker: 'off' });
   const status = { textContent: '' };
   function control() { const t = new Target(); t.hidden = false; t.disabled = false; t.focus = () => { t.focused = true; }; return t; }
   const exclude = control(), include = control(); include.hidden = true;
@@ -232,9 +233,71 @@ test('server marker is mandatory and composes with every existing browser gate, 
   }
   const duplicates = fixture(); duplicates.doc.querySelectorAll = () => [{ getAttribute: () => 'eligible' }, { getAttribute: () => 'eligible' }];
   duplicates.start(); assert.equal(duplicates.scripts.length, 0);
-  const f = fixture({ regionMarker: 'eligible', config: ANALYTICS_CONFIG }); f.start(); assert.equal(f.scripts.length, 0);
+  const f = fixture({ regionMarker: 'eligible', config: ANALYTICS_CONFIG }); f.start(); assert.equal(f.scripts.length, 1);
   for (const regionMarker of [null, 'off', 'eligible']) {
     const tab = fixture({ regionMarker }); tab.data.set(ANALYTICS_EXCLUSION_KEY, '1'); tab.data.set('saved', 'keep'); tab.start();
     assert.equal(tab.scripts.length, 0); assert.equal(tab.data.get('saved'), 'keep'); assert.equal(tab.writes.length, 0);
+  }
+});
+
+
+test('actual pilot config composes with Worker document gating; no real SDK or transport executes', async () => {
+  const html = readFileSync(new URL('projects.html', import.meta.url), 'utf8');
+  const runtime = createWorker(() => { throw Error('No RPC or network permitted'); });
+  for (const [host, path, country, binding, expected] of [
+    [ANALYTICS_ORIGIN, '/projects/', 'SG', undefined, false],
+    ['https://pulse-staging.inshell.art', '/projects/', 'SG', 'production', false],
+    [ANALYTICS_ORIGIN, '/projects/', 'SG', 'production', true],
+    [ANALYTICS_ORIGIN, '/projects/', 'GB', 'production', false],
+    [ANALYTICS_ORIGIN, '/projects/', undefined, 'production', false],
+    [ANALYTICS_ORIGIN, '/projects/?', 'SG', 'production', false],
+  ]) {
+    const req = new Request(host + path);
+    if (country !== undefined) Object.defineProperty(req, 'cf', { value: { country } });
+    const env = { ASSETS: { fetch: async () => new Response(html) } };
+    if (binding !== undefined) env.PULSE_MEASUREMENT_DOCUMENT_ENV = binding;
+    const response = await runtime.fetch(req, env);
+    const marker = (await response.text()).match(/name="pulse-measurement-region" content="([^"]+)"/)[1];
+    const f = fixture({ config: ANALYTICS_CONFIG, url: host + path, regionMarker: marker });
+    assert.equal(f.start().status().loaded, expected, `${host}${path}/${country}/${binding}`);
+    assert.equal(f.scripts.length, expected ? 1 : 0); assert.equal(f.policies.length, expected ? 1 : 0);
+    assert.equal(f.writes.length, 0);
+  }
+  for (const referrer of ['', `${ANALYTICS_ORIGIN}/projects/`]) {
+    const f = fixture({ config: ANALYTICS_CONFIG, referrer }); assert.equal(f.start().status().loaded, true);
+  }
+  for (const referrer of ['https://search.example/', `${ANALYTICS_ORIGIN}/`, `${ANALYTICS_ORIGIN}/projects/?secret=1`, `${ANALYTICS_ORIGIN}/projects/#private`]) {
+    const f = fixture({ config: ANALYTICS_CONFIG, referrer }); assert.equal(f.start().status().loaded, false); assert.equal(f.appended.length, 0);
+  }
+  const wrangler = readFileSync(new URL('wrangler.jsonc', import.meta.url), 'utf8');
+  assert.doesNotMatch(wrangler, /PULSE_MEASUREMENT_DOCUMENT_ENV/);
+});
+
+test('automatic first-party entry uses actual pilot config and one conditional loader; no facade or SDK evaluation', async () => {
+  for (const [label, marker, loaded] of [['ordinary', 'off', false], ['temporary-binding', 'eligible', true]]) {
+    const f = fixture({ config: ANALYTICS_CONFIG, regionMarker: marker });
+    const status = { textContent: '' };
+    const control = () => Object.assign(new Target(), { focus() {} });
+    const exclude = control(), include = control();
+    f.doc.querySelector = selector => ({ '[data-privacy-status]': status,
+      '[data-privacy-action="exclude"]': exclude, '[data-privacy-action="include"]': include })[selector] ?? null;
+    const oldWindow = globalThis.window, oldDocument = globalThis.document;
+    globalThis.window = f.win; globalThis.document = f.doc;
+    try {
+      await import(`./analytics.js?pilot-${label}`);
+      assert.equal(f.win.__pulseMeasurementController.status().loaded, loaded);
+      assert.match(status.textContent, loaded ? /active/ : /off/);
+      assert.deepEqual(f.appended.map(node => node.tagName), loaded ? ['META', 'SCRIPT'] : []);
+      if (loaded) {
+        assert.equal(f.scripts[0].referrerPolicy, 'no-referrer');
+        assert.deepEqual(JSON.parse(f.scripts[0].attributes['data-cf-beacon']), { token: ANALYTICS_CONFIG.beaconToken, spa: false });
+        await import(`./analytics.js?pilot-${label}-again`);
+        assert.equal(f.scripts.length, 1); assert.equal(f.policies.length, 1);
+      }
+      assert.equal(f.writes.length, 0);
+    } finally {
+      if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+      if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    }
   }
 });
