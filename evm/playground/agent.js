@@ -22,13 +22,23 @@ guide.addEventListener("toggle", async () => {
   } finally { loading = false; }
 });
 
-copy.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(prompt.value);
-    status.textContent = "Copied. Paste it into your agent.";
-  } catch {
-    prompt.focus();
-    prompt.select();
-    status.textContent = "Select and copy the prompt below.";
-  }
-});
+function bindPromptCopy(button, field, feedback) {
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(field.value);
+      feedback.textContent = "Copied. Paste it into your agent.";
+    } catch {
+      field.focus();
+      field.select();
+      feedback.textContent = "Select and copy the prompt below.";
+    }
+  });
+}
+
+bindPromptCopy(copy, prompt, status);
+
+const calibrationCopy = document.getElementById("copy-calibration-prompt");
+if (calibrationCopy) {
+  bindPromptCopy(calibrationCopy, document.getElementById("calibration-prompt"), document.getElementById("calibration-copy-status"));
+  calibrationCopy.disabled = false;
+}

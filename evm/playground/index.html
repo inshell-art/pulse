@@ -164,6 +164,28 @@
     <section class="chapter" id="build" aria-labelledby="build-heading">
       <h2 id="build-heading">Build with Pulse.</h2>
       <p>Bring Pulse to your own auction. Choose how to use the calculations; no registration is required.</p>
+      <div class="auction-calibration" id="calibrate">
+        <h3>Calibrate an auction.</h3>
+        <p>Tell your agent your opening price, floor, and how long buyers should wait. Compare Core V1 settings before you integrate. <a href="https://github.com/inshell-art/pulse/blob/801374978686640fd3a6ae3ad6ab99667e29c30d/.agents/skills/pulse-auction-calibration/SKILL.md" target="_blank" rel="noopener noreferrer">Read the skill ↗</a></p>
+        <details class="disclosure calibration-example" id="calibration-example">
+          <summary>Example prompt and decision table</summary>
+          <div class="disclosure-body">
+            <div class="action-row"><button type="button" class="primary-button" id="copy-calibration-prompt" disabled>Copy example prompt</button><span id="calibration-copy-status" role="status"></span></div>
+            <textarea id="calibration-prompt" readonly rows="7" aria-label="Example prompt for calibrating a Pulse auction">I want to open at 0.0055 ETH with a 0.005 ETH starting floor. If nobody buys, halve the premium above the floor in about one minute. Compare adjacent powers of ten for k in a decision table.
+
+Use the Pulse Auction Calibration skill for Core V1 at https://github.com/inshell-art/pulse/blob/801374978686640fd3a6ae3ad6ab99667e29c30d/.agents/skills/pulse-auction-calibration/SKILL.md</textarea>
+            <table class="calibration-table">
+              <caption>Quiet opening without purchases</caption>
+              <thead><tr><th scope="col">k (wei·s)</th><th scope="col">Time to 0.00525 ETH</th><th scope="col">Ask at one minute (ETH)</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">10<sup>16</sup></th><td>20 seconds</td><td>0.005125</td></tr>
+                <tr><th scope="row">10<sup>17</sup></th><td>3 min 20 sec</td><td>0.005385</td></tr>
+              </tbody>
+            </table>
+            <p class="calibration-note">An exact one-minute target requires k = 3 × 10<sup>16</sup> at these prices, outside the powers-of-ten grid.</p>
+          </div>
+        </details>
+      </div>
       <p><strong>Call the shared Core.</strong> Connect your application to the released Core contract on Sepolia. <a href="https://github.com/inshell-art/pulse/blob/a08ec26e396b9d3e20ccebd8871f176368bcd713/docs/evm/pulse-core-integration.md" target="_blank" rel="noopener noreferrer">Integration guide ↗</a></p>
       <p><strong>Import the math.</strong> Compile the Pulse calculation library into your own contract. <a href="https://github.com/inshell-art/pulse/tree/pulse-core-v1.0.0/evm/src/core" target="_blank" rel="noopener noreferrer">Calculation source ↗</a></p>
       <p class="implementation-note">Start with the <a href="https://github.com/inshell-art/pulse/releases/tag/pulse-core-v1.0.0" target="_blank" rel="noopener noreferrer">Core V1 release ↗</a> for the interface, deployment record, and reference material.</p>
