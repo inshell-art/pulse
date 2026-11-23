@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pulse Auction Calibration"
+  short_description: "Turn auction intentions into a Pulse decision table"
+  default_prompt: "Use $pulse-auction-calibration to discuss this auction’s intention and build a V1 parameter decision table."

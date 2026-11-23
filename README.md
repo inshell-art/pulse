@@ -14,7 +14,11 @@ PATH and signatures.gallery own their auction configuration, state, activation, 
 
 The design history is tracked in the [Approach B plan](docs/evm/shared-pulse-core-plan.md). The [V1 specification](docs/evm/pulse-core-api.md), [core implementation](evm/src/core/PulseCoreV1.sol), [reference consumer integration](docs/evm/pulse-core-integration.md), [gas benchmark](docs/evm/pulse-core-benchmark.md), [Task 5B review/build freeze](docs/evm/pulse-core-review.md) and [Task 6 release package](docs/evm/pulse-core-release.md) are complete through the Anvil rehearsal and [Sepolia deployment/reference rehearsal](evm/releases/pulse-core-v1/sepolia.json). Ethereum mainnet deployment is deferred.
 
-Quick start:
+## Calibrate an auction
+
+Use the [Pulse Auction Calibration skill](.agents/skills/pulse-auction-calibration/SKILL.md) to turn a plain-language auction intention into a Pulse V1 parameter decision table. From this checkout, ask your agent to use `$pulse-auction-calibration` and describe the opening price, starting floor, and how quickly you want the ask to reach a lower price. The skill compares the choices using V1's integer pricing model so you can decide which tradeoffs fit.
+
+## Quick start
 
 ```bash
 cd evm
